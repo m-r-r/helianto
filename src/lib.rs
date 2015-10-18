@@ -32,7 +32,7 @@ impl Default for Settings {
             follow_links: false,
         }
     }
-} 
+}
 
 pub struct Generator {
     pub settings: Settings,
@@ -40,15 +40,13 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(settings: &Settings) -> Generator {
-        Generator {
-            settings: settings.clone()
-        }
+        Generator { settings: settings.clone() }
     }
 
 
     fn check_settings(&self) {
         let Settings { ref source_dir, ref dest_dir, .. } = self.settings;
-        
+
         if !source_dir.is_dir() {
             panic!("{} is not a directory", source_dir.display());
         }
@@ -61,8 +59,10 @@ impl Generator {
     pub fn run(&mut self) {
         self.check_settings();
 
-        let entries = WalkDir::new(&self.settings.source_dir).max_depth(self.settings.max_depth)
-            .follow_links(self.settings.follow_links).into_iter();
+        let entries = WalkDir::new(&self.settings.source_dir)
+                          .max_depth(self.settings.max_depth)
+                          .follow_links(self.settings.follow_links)
+                          .into_iter();
 
         for entry in entries.filter(|entry| utils::valid_filename(entry.path.filename())) {
             if let Err(e) = entry {
@@ -76,7 +76,11 @@ impl Generator {
 }
 
 
-pub enum FileType { Document, Media, Asset }
+pub enum FileType {
+    Document,
+    Media,
+    Asset,
+}
 
 pub struct FileInfo {
     kind: FileType,
@@ -103,4 +107,3 @@ pub struct Media {
     pub source: FileInfo,
     pub content: String,
 }
-

@@ -19,12 +19,16 @@ fn main() {
     let program = args[0].clone();
 
     let mut opts = Options::new();
-    opts.optflag("h", "help",    "display this help and exit");
+    opts.optflag("h", "help", "display this help and exit");
     opts.optflag("V", "version", "output version information and exit");
 
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => { m }
-        Err(f) => { panic!(f.to_string()) }
+        Ok(m) => {
+            m
+        }
+        Err(f) => {
+            panic!(f.to_string())
+        }
     };
 
     if matches.opt_present("h") {

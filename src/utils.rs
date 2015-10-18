@@ -12,8 +12,12 @@ pub trait PathExt {
 
 #[doc(hidden)]
 impl PathExt for Path {
-    fn metadata(&self) -> io::Result<fs::Metadata> { fs::metadata(self) }
-    fn exists(&self) -> bool { fs::metadata(self).is_ok() }
+    fn metadata(&self) -> io::Result<fs::Metadata> {
+        fs::metadata(self)
+    }
+    fn exists(&self) -> bool {
+        fs::metadata(self).is_ok()
+    }
 
     fn is_file(&self) -> bool {
         fs::metadata(self).map(|s| s.is_file()).unwrap_or(false)
@@ -32,11 +36,13 @@ static INVALID_CHARS: &'static str = "._~#$";
 /// A valid filename must not start with `.`, `_`, `~`, `#` or `$` and must be at least one
 /// character long.
 pub fn valid_filename<S: AsRef<OsStr>>(filename: S) -> bool {
-    filename.to_str().map(|filename_str| {
-        if filename_str.len() > 0 {
-            !INVALID_CHARS.contains(filename_str.char_at(0))
-        } else {
-            false
-        }
-    }).unwrap_or(false)
+    filename.to_str()
+            .map(|filename_str| {
+                if filename_str.len() > 0 {
+                    !INVALID_CHARS.contains(filename_str.char_at(0))
+                } else {
+                    false
+                }
+            })
+            .unwrap_or(false)
 }
