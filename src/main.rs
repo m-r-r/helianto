@@ -1,9 +1,11 @@
 extern crate getopts;
-
+extern crate helianto;
 
 use std::env;
 use std::path::PathBuf;
 use getopts::Options;
+
+use helianto::{Settings, Generator};
 
 
 fn print_usage(program: &str, opts: Options) {
@@ -34,17 +36,15 @@ fn main() {
         panic!("Invalid number of arguments");
     }
 
-    let source = if matches.free.len() > 0 {
-        PathBuf::from(matches.free[0].clone())
-    } else {
-        PathBuf::from(".")
-    };
+    let mut settings = Settings::default();
 
-    let dest = if matches.free.len() > 1 {
-        PathBuf::from(matches.free[1].clone())
-    } else {
-        PathBuf::from("_output")
-    };
+    if matches.free.len() > 0 {
+        settings.source_dir = PathBuf::from(matches.free[0].clone())
+    }
 
-    println!("{} -> {}", source.display(), dest.display());
+    if matches.free.len() > 1 {
+        settings.dest_dir = PathBuf::from(matches.free[1].clone());
+    }
+
+    Generator::new(&settings).run();
 }
