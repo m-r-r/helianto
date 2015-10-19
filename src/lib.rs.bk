@@ -1,21 +1,16 @@
 extern crate rustc_serialize;
 extern crate walkdir;
-#[macro_use(wrap)]
-extern crate hoedown;
 
 mod utils;
 mod error;
-pub mod readers;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::default::Default;
-use std::fs;
-use walkdir::{WalkDir, WalkDirIterator};
-use std::rc::Rc;
+use walkdir::WalkDir;
 
 use utils::PathExt;
 pub use error::{Error, Result};
-use readers::Reader;
+
 
 
 #[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
@@ -37,7 +32,7 @@ impl Default for Settings {
             follow_links: false,
         }
     }
-}
+} 
 
 pub struct Generator {
     pub settings: Settings,
@@ -46,14 +41,14 @@ pub struct Generator {
 impl Generator {
     pub fn new(settings: &Settings) -> Generator {
         Generator {
-            settings: settings.clone(),
+            settings: settings.clone()
         }
     }
 
 
     fn check_settings(&self) {
         let Settings { ref source_dir, ref dest_dir, .. } = self.settings;
-
+        
         if !source_dir.is_dir() {
             panic!("{} is not a directory", source_dir.display());
         }
@@ -63,19 +58,13 @@ impl Generator {
         }
     }
 
-    pub fn get_reader(&self, _path: &Path) -> Option<Rc<Reader>> {
-       unimplemented!() 
-    }
-
     pub fn run(&mut self) {
         self.check_settings();
 
-        let entries = WalkDir::new(&self.settings.source_dir)
-                          .max_depth(self.settings.max_depth)
-                          .follow_links(self.settings.follow_links)
-                          .into_iter();
+        let entries = WalkDir::new(&self.settings.source_dir).max_depth(self.settings.max_depth)
+            .follow_links(self.settings.follow_links).into_iter();
 
-        for entry in entries.filter_entry(|entry| utils::valid_filename(entry.path()) ) {
+        for entry in entries.filter(|entry| utils::valid_filename(entry.path.filename())) {
             if let Err(e) = entry {
                 println!("{}", e);
                 continue;
@@ -87,11 +76,7 @@ impl Generator {
 }
 
 
-pub enum FileType {
-    Document,
-    Media,
-    Asset,
-}
+pub enum FileType { Document, Media, Asset }
 
 pub struct FileInfo {
     kind: FileType,
@@ -118,3 +103,4 @@ pub struct Media {
     pub source: FileInfo,
     pub content: String,
 }
+
