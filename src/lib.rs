@@ -12,6 +12,7 @@ use std::default::Default;
 use std::fs;
 use walkdir::{WalkDir, WalkDirIterator};
 use std::rc::Rc;
+use std::collections::HashMap;
 
 use utils::PathExt;
 pub use error::{Error, Result};
@@ -41,13 +42,17 @@ impl Default for Settings {
 
 pub struct Generator {
     pub settings: Settings,
+    readers: HashMap<String, Rc<Reader>>,
 }
 
 impl Generator {
     pub fn new(settings: &Settings) -> Generator {
-        Generator {
+        let mut generator = Generator {
             settings: settings.clone(),
-        }
+            readers: HashMap::new(),
+        };
+        generator.add_reader::<readers::MarkdownReader>();
+        generator
     }
 
 
@@ -63,11 +68,32 @@ impl Generator {
         }
     }
 
-    pub fn get_reader(&self, _path: &Path) -> Option<Rc<Reader>> {
-       unimplemented!() 
+    pub fn get_reader(&self, path: &Path) -> Option<Rc<Reader>> {
+        path.extension().and_then(|extension| extension.to_str())
+            .and_then(|extension_str| self.readers.get(extension_str))
+            .map(|rc| rc.clone())
     }
 
-    pub fn run(&mut self) {
+    pub fn add_reader<T: Reader + 'static>(&mut self) {
+        let reader = Rc::new(T::new(&self.settings));
+
+        for &extension in T::extensions() {
+            self.readers.insert(extension.into(), reader.clone());
+        }
+    }
+
+
+    fn render_document(&mut self, reader: Rc<Reader>, path: &Path) -> Result<()> {
+        let (body, metadata) = try! { reader.load(path) }; 
+        println!("{}", body);
+        Ok(())
+    }
+
+    fn render_file(&mut self, path: &Path) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<()> {
         self.check_settings();
 
         let entries = WalkDir::new(&self.settings.source_dir)
@@ -75,14 +101,22 @@ impl Generator {
                           .follow_links(self.settings.follow_links)
                           .into_iter();
 
-        for entry in entries.filter_entry(|entry| utils::valid_filename(entry.path()) ) {
+        for entry in entries.filter_entry(|entry| utils::valid_filename(entry.path())) {
             if let Err(e) = entry {
                 println!("{}", e);
                 continue;
             }
-            let entry = entry.unwrap();
-            println!("{:?}", entry);
+            let entry = entry.map(|e| PathBuf::from(e.path())).unwrap();
+
+            try! {
+                match self.get_reader(&entry) {
+                    Some(reader) => self.render_document(reader.clone(), &entry),
+                    None => self.render_file(&entry),
+                }
+            }
         }
+
+        Ok(())
     }
 }
 

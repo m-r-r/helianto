@@ -40,6 +40,6 @@ pub fn valid_filename<S: AsRef<Path>>(filename: S) -> bool {
             .file_name()
             .and_then(|filename| filename.to_str())
             .and_then(|filename_str| filename_str.chars().next())
-            .map(|first_char| !INVALID_CHARS.contains(first_char) )
+            .map(|first_char| !INVALID_CHARS.contains(first_char))
             .unwrap_or(false)
 }

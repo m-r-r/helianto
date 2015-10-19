@@ -29,7 +29,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Io(ref err) => write!(f, "IO error: {}", err),
-            Error::Reader{ref path, ref cause} => write!(f, "Error while reading {}: {}", path.display(), cause),
+            Error::Reader{ref path, ref cause} =>
+                write!(f, "Error while reading {}: {}", path.display(), cause),
         }
     }
 }
