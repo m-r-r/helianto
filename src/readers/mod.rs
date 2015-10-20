@@ -1,10 +1,11 @@
 use std::path::Path;
+use std::collections::HashMap;
 use super::Result;
 
 mod markdown;
 pub use self::markdown::MarkdownReader;
 
-pub type Metadata = ();
+pub type Metadata = HashMap<String, String>;
 
 pub trait Reader {
     fn extensions() -> &'static [&'static str] where Self: Sized;

@@ -30,7 +30,7 @@ impl Reader for MarkdownReader {
             )
         });
 
-        Ok((body, ()))
+        Ok((body, Metadata::new()))
     }
 }
 

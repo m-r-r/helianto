@@ -47,7 +47,7 @@ fn main() {
     }
 
     if matches.free.len() > 1 {
-        settings.dest_dir = PathBuf::from(matches.free[1].clone());
+        settings.output_dir = PathBuf::from(matches.free[1].clone());
     }
 
     Generator::new(&settings).run();

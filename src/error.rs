@@ -15,6 +15,18 @@ pub enum Error {
         path: PathBuf,
         cause: Box<error::Error>,
     },
+    // An error happened while copying a file
+    Copy {
+        from: PathBuf,
+        to: PathBuf,
+        cause: Box<error::Error>,
+    },
+
+    // An error happened while writing an output file
+    Output {
+        dest: PathBuf,
+        cause: Box<error::Error>,
+    },
 }
 
 
@@ -29,8 +41,17 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Io(ref err) => write!(f, "IO error: {}", err),
-            Error::Reader{ref path, ref cause} =>
+            Error::Reader { ref path, ref cause} =>
                 write!(f, "Error while reading {}: {}", path.display(), cause),
+            Error::Copy { ref from, ref to, ref cause } => write!(f,
+                                                                  "Could not copy {} to {}: {}",
+                                                                  from.display(),
+                                                                  to.display(),
+                                                                  cause),
+            Error::Output { ref dest, ref cause } => write!(f,
+                                                            "Could not write output file {}: {}",
+                                                            dest.display(),
+                                                            cause),
         }
     }
 }
@@ -41,6 +62,8 @@ impl error::Error for Error {
         match *self {
             Error::Io(ref err) => err.description(),
             Error::Reader { ref cause, .. } => cause.description(),
+            Error::Copy { ref cause, .. } => cause.description(),
+            Error::Output { ref cause, .. } => cause.description(),
         }
     }
 
@@ -48,6 +71,8 @@ impl error::Error for Error {
         match *self {
             Error::Io(ref err) => Some(err),
             Error::Reader { ref cause, .. } => Some(cause.borrow()),
+            Error::Copy { ref cause, .. } => Some(cause.borrow()),
+            Error::Output { ref cause, .. } => Some(cause.borrow()),
         }
     }
 }
