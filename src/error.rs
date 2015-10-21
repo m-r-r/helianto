@@ -15,6 +15,12 @@ pub enum Error {
         path: PathBuf,
         cause: Box<error::Error>,
     },
+
+    // An error happened while rendering a file
+    Render {
+        cause: Box<error::Error>,
+    },
+
     // An error happened while copying a file
     Copy {
         from: PathBuf,
@@ -52,6 +58,7 @@ impl fmt::Display for Error {
                                                             "Could not write output file {}: {}",
                                                             dest.display(),
                                                             cause),
+            Error::Render { ref cause } => write!(f, "Rendering failed: {}", cause),
         }
     }
 }
@@ -64,6 +71,7 @@ impl error::Error for Error {
             Error::Reader { ref cause, .. } => cause.description(),
             Error::Copy { ref cause, .. } => cause.description(),
             Error::Output { ref cause, .. } => cause.description(),
+            Error::Render { ref cause, .. } => cause.description(), 
         }
     }
 
@@ -73,6 +81,7 @@ impl error::Error for Error {
             Error::Reader { ref cause, .. } => Some(cause.borrow()),
             Error::Copy { ref cause, .. } => Some(cause.borrow()),
             Error::Output { ref cause, .. } => Some(cause.borrow()),
+            Error::Render { ref cause, .. } => Some(cause.borrow()),
         }
     }
 }

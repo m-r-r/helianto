@@ -50,5 +50,7 @@ fn main() {
         settings.output_dir = PathBuf::from(matches.free[1].clone());
     }
 
-    Generator::new(&settings).run();
+    Generator::new(&settings).run().unwrap_or_else(|err| {
+        println!("Compilation failed: {}", err);
+    });
 }

@@ -1,25 +1,29 @@
 extern crate rustc_serialize;
 extern crate walkdir;
+extern crate handlebars;
 #[macro_use(wrap)]
 extern crate hoedown;
 
 mod utils;
 mod error;
+mod document;
 pub mod readers;
 
 use std::path::{Path, PathBuf};
 use std::default::Default;
-use std::error::Error as StdError;
 use std::fs;
 use std::fs::File;
-use std::io::Write;
-use walkdir::{WalkDir, WalkDirIterator};
+use std::io::{Read, Write};
 use std::rc::Rc;
 use std::collections::HashMap;
+use rustc_serialize::json::ToJson;
+use walkdir::{WalkDir, WalkDirIterator};
+use handlebars::Handlebars;
 
 use utils::PathExt;
 pub use error::{Error, Result};
 use readers::Reader;
+pub use document::{DocumentMetadata,Document};
 
 
 #[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
@@ -45,6 +49,7 @@ impl Default for Settings {
 
 pub struct Generator {
     pub settings: Settings,
+    handlebars: Handlebars,
     readers: HashMap<String, Rc<Reader>>,
 }
 
@@ -53,6 +58,7 @@ impl Generator {
         let mut generator = Generator {
             settings: settings.clone(),
             readers: HashMap::new(),
+            handlebars: Handlebars::new(),
         };
         generator.add_reader::<readers::MarkdownReader>();
         generator
@@ -87,6 +93,51 @@ impl Generator {
     }
 
     fn load_templates(&mut self) -> Result<()> {
+        self.handlebars.clear_templates();
+
+        // Default templates :
+        self.handlebars.register_template_string("head.html", include_str!("templates/head.html.hbs").into()).unwrap();
+        self.handlebars.register_template_string("page.html", include_str!("templates/page.html.hbs").into()).unwrap();
+        self.handlebars.register_template_string("foot.html", include_str!("templates/foot.html.hbs").into()).unwrap();
+
+        let template_dir = self.settings.source_dir.join("_layouts");
+
+        if !template_dir.is_dir() {
+            return Ok(());
+        }
+
+
+        let entries = WalkDir::new(template_dir)
+                            .max_depth(7)
+                            .into_iter()
+                            .filter_entry(|entry| entry.file_type().is_dir() || utils::filter_template(entry))
+                            .filter_map(|entry| entry.ok())
+                            .map(|entry| PathBuf::from(entry.path()));
+
+
+        for entry in entries {
+            let template_name: String = match entry.with_extension("").clone().file_name().and_then(|n| n.to_str()) {
+                Some(s) => s.into(),
+                None => {
+                    println!("Unable to load template file: {}: invalid file name", entry.display());
+                    continue;
+                }
+            };
+
+            let mut source = String::new();
+            if let Err(e) = File::open(&entry).and_then(|mut fd| fd.read_to_string(&mut source)) {
+                println!("Unable to load template file {}: {}", entry.display(), e);
+                continue;
+            }
+
+            match self.handlebars.register_template_string(template_name.as_ref(), source) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Could not load tempalte file: {}: {}", entry.display(), e);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -96,11 +147,17 @@ impl Generator {
                        .map(|relpath| relpath.with_extension("html"))
                        .unwrap();
 
-        let mut info = DocumentInfo::default();
+        let mut document = Document {
+            metadata: DocumentMetadata::default(),
+            content: body,
+        };
 
 
-
-        let output: String = body.into();
+        let output: String = try! { self.handlebars.render("page.html", &document.to_json())
+                .map_err(|err| Error::Render {
+                    cause: Box::new(err)
+                })
+        };
 
         let dest_file = self.settings.output_dir.join(dest);
         let dest_dir = dest_file.parent().unwrap();
@@ -142,6 +199,7 @@ impl Generator {
 
     pub fn run(&mut self) -> Result<()> {
         self.check_settings();
+        try!{self.load_templates()};
 
         let entries = WalkDir::new(&self.settings.source_dir)
                           .max_depth(self.settings.max_depth)
@@ -172,49 +230,4 @@ impl Generator {
 
         Ok(())
     }
-}
-
-
-pub enum FileType {
-    Document,
-    Media,
-    Asset,
-}
-
-pub struct FileInfo {
-    kind: FileType,
-    path: PathBuf,
-}
-
-pub struct DocumentInfo {
-    pub title: String,
-    pub language: Option<String>,
-    pub modified: Option<u64>,
-    pub created: Option<u64>,
-    pub keywords: Vec<String>,
-}
-
-impl Default for DocumentInfo {
-    fn default() -> DocumentInfo {
-        DocumentInfo {
-            title: "".into(),
-            language: None,
-            modified: None,
-            created: None,
-            keywords: Vec::new(),
-        }
-    }
-}
-
-pub struct Document {
-    pub info: DocumentInfo,
-    pub source: FileInfo,
-    pub content: String,
-}
-
-
-pub struct Media {
-    pub info: DocumentInfo,
-    pub source: FileInfo,
-    pub content: String,
 }
