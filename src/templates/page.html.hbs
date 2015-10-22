@@ -1,8 +1,6 @@
-{{>head}}
-
-<main>
-    <h1>{{title}}</h1>
-    {{content}}
+{{> head.html}}
+<main class="page__body">
+    <h1>{{page.title}}</h1>
+    {{{page.content}}}
 </main>
-
-{{>foot}}
+{{> foot.html}}

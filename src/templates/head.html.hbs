@@ -2,9 +2,10 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>{{page.title}}</title>
+    <title>{{page.title}} &dash; {{site.title}}</title>
   </head>
   <body>
-    <header>
-      <a href="{{site.url}}">{{site.title}}</a>
-    </header>
+    <div class="page">
+      <header role="banner" clas="page__header">
+        <a href="{{site.url}}">{{site.title}}</a>
+      </header>
