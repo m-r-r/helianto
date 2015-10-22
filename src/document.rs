@@ -1,6 +1,8 @@
+use std::iter::FromIterator;
+use std::ascii::AsciiExt;
 use rustc_serialize::json::{Json, Object, ToJson};
 
-#[derive(RustcEncodable, RustcDecodable)]
+#[derive(Debug, RustcEncodable, RustcDecodable)]
 pub struct DocumentMetadata {
     pub title: String,
     pub language: Option<String>,
@@ -20,6 +22,24 @@ impl Default for DocumentMetadata {
         }
     }
 }
+
+
+impl FromIterator<(String,String)> for DocumentMetadata {
+    fn from_iter<T>(iterator: T) -> Self
+      where T: IntoIterator<Item=(String,String)> {
+        let mut metadata = DocumentMetadata::default();
+        for (key, value) in iterator {
+            match key.to_ascii_lowercase().as_ref() {
+                "title" => { metadata.title = value; },
+                "language" => { metadata.language = Some(value); },
+                "keywords" => { metadata.keywords = value.split(",").map(|s| String::from(s)).collect(); },
+                e => println!("Unknown metadata {}", e),
+            }
+        }
+        metadata
+    }
+}
+
 
 impl ToJson for DocumentMetadata {
     fn to_json(&self) -> Json {

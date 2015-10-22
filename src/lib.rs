@@ -3,6 +3,7 @@ extern crate walkdir;
 extern crate handlebars;
 #[macro_use(wrap)]
 extern crate hoedown;
+extern crate regex;
 
 mod utils;
 mod error;
@@ -159,8 +160,8 @@ impl Generator {
                        .map(|relpath| relpath.with_extension("html"))
                        .unwrap();
 
-        let mut document = Document {
-            metadata: DocumentMetadata::default(),
+        let document = Document {
+            metadata: metadata.into_iter().collect(),
             content: body,
         };
 
