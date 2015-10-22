@@ -7,6 +7,7 @@ extern crate hoedown;
 mod utils;
 mod error;
 mod document;
+mod templates;
 pub mod readers;
 mod site;
 
@@ -26,6 +27,7 @@ pub use error::{Error, Result};
 use readers::Reader;
 pub use document::{DocumentMetadata,Document};
 pub use site::Site;
+use templates::Context;
 
 
 #[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
@@ -163,7 +165,8 @@ impl Generator {
         };
 
 
-        let output: String = try! { self.handlebars.render("page.html", &document.to_json())
+        let payload = Context::new(&self.site, &document).to_json();
+        let output: String = try! { self.handlebars.render("page.html", &payload)
                 .map_err(|err| Error::Render {
                     cause: Box::new(err)
                 })
@@ -218,7 +221,7 @@ impl Generator {
 
         for entry in entries.filter_entry(|entry| utils::valid_filename(entry.path())) {
             let entry = match entry {
-                Err(e) => continue,
+                Err(_) => continue,
                 Ok(e) => {
                     if e.file_type().is_dir() {
                         continue
