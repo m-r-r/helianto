@@ -8,6 +8,7 @@ mod utils;
 mod error;
 mod document;
 pub mod readers;
+mod site;
 
 use std::path::{Path, PathBuf};
 use std::default::Default;
@@ -24,6 +25,7 @@ use utils::PathExt;
 pub use error::{Error, Result};
 use readers::Reader;
 pub use document::{DocumentMetadata,Document};
+pub use site::Site;
 
 
 #[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
@@ -33,6 +35,9 @@ pub struct Settings {
     pub base_url: String,
     pub max_depth: usize,
     pub follow_links: bool,
+    pub site_title: Option<String>,
+    pub site_url: Option<String>,
+    pub site_language: Option<String>,
 }
 
 impl Default for Settings {
@@ -43,6 +48,9 @@ impl Default for Settings {
             base_url: String::from("/"),
             max_depth: ::std::usize::MAX,
             follow_links: false,
+            site_title: None,
+            site_url: None,
+            site_language: None,
         }
     }
 }
@@ -51,6 +59,7 @@ pub struct Generator {
     pub settings: Settings,
     handlebars: Handlebars,
     readers: HashMap<String, Rc<Reader>>,
+    site: Site,
 }
 
 impl Generator {
@@ -59,6 +68,7 @@ impl Generator {
             settings: settings.clone(),
             readers: HashMap::new(),
             handlebars: Handlebars::new(),
+            site: Site::new(settings),
         };
         generator.add_reader::<readers::MarkdownReader>();
         generator
