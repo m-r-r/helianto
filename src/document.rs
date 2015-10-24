@@ -2,7 +2,7 @@ use std::iter::FromIterator;
 use std::ascii::AsciiExt;
 use rustc_serialize::json::{Json, Object, ToJson};
 
-#[derive(Debug, RustcEncodable, RustcDecodable)]
+#[derive(Debug, Clone, RustcEncodable, RustcDecodable)]
 pub struct DocumentMetadata {
     pub title: String,
     pub language: Option<String>,
@@ -69,4 +69,3 @@ impl ToJson for Document {
         }
     }
 }
-

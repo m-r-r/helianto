@@ -63,6 +63,7 @@ pub struct Generator {
     handlebars: Handlebars,
     readers: HashMap<String, Rc<Reader>>,
     site: Site,
+    documents: Vec<(String, Rc<DocumentMetadata>)>,
 }
 
 impl Generator {
@@ -72,6 +73,7 @@ impl Generator {
             readers: HashMap::new(),
             handlebars: Handlebars::new(),
             site: Site::new(settings),
+            documents: Vec::new(),
         };
         generator.add_reader::<readers::MarkdownReader>();
         generator
@@ -173,13 +175,14 @@ impl Generator {
                 })
         };
 
-        let dest_file = self.settings.output_dir.join(dest);
+        let dest_file = self.settings.output_dir.join(&dest);
         let dest_dir = dest_file.parent().unwrap();
         fs::create_dir_all(&dest_dir)
             .and_then(|_| {
                 let mut fd = try! { File::create(&dest_file) };
                 try! { fd.write(output.as_ref()) };
                 try! { fd.sync_data() };
+                self.documents.push((dest.to_str().unwrap().into(), Rc::new(document.metadata.clone())));
                 Ok(())
             })
             .map_err(|err| {
@@ -206,6 +209,53 @@ impl Generator {
                 Error::Copy {
                     from: path.into(),
                     to: dest_dir.into(),
+                    cause: Box::new(err),
+                }
+            })
+    }
+
+    fn render_index(&mut self) -> Result<()> {
+        use rustc_serialize::json::{Json,Object,ToJson};
+
+        self.documents.sort_by(|first, second| {
+            first.1.created.unwrap_or(0u64).cmp(&second.1.created.unwrap_or(0u64))
+        });
+        
+        let documents: Vec<Json> = self.documents.iter().map(|&(ref url, ref metadata)| {
+            match metadata.to_json() {
+                Json::Object(mut obj) => {
+                    obj.insert("url".into(), url.to_json());
+                    Json::Object(obj)
+                },
+                v => v
+            }
+        }).collect();
+
+        let payload = {
+            let mut obj = Object::new();
+            obj.insert("site".into(), self.site.to_json()); 
+            obj.insert("pages".into(), documents.to_json()); 
+            Json::Object(obj)
+        };
+
+        let output: String = try! { self.handlebars.render("page.html", &payload)
+                .map_err(|err| Error::Render {
+                    cause: Box::new(err)
+                })
+        };
+
+        let dest_file = self.settings.output_dir.join("index.html");
+        let dest_dir = dest_file.parent().unwrap();
+        fs::create_dir_all(&dest_dir)
+            .and_then(|_| {
+                let mut fd = try! { File::create(&dest_file) };
+                try! { fd.write(output.as_ref()) };
+                try! { fd.sync_data() };
+                Ok(())
+            })
+            .map_err(|err| {
+                Error::Output {
+                    dest: dest_dir.into(),
                     cause: Box::new(err),
                 }
             })
@@ -241,6 +291,8 @@ impl Generator {
                 println!("{}", err);
             }
         }
+
+        try! { self.render_index() }
 
         Ok(())
     }
