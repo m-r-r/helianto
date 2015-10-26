@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
-use std::fs::{File};
-use std::io::{Read};
-use rustc_serialize::{Decoder, Decodable};
-use toml::Decoder as TomlDecoder; 
+use std::fs::File;
+use std::io::Read;
+use rustc_serialize::{Decodable, Decoder};
+use toml::Decoder as TomlDecoder;
 use toml::{Parser, Value};
 use super::Error;
 
@@ -58,7 +58,7 @@ impl Settings {
         settings.source_dir = path.as_ref().join(settings.source_dir);
         settings.output_dir = path.as_ref().join(settings.output_dir);
         Ok(settings)
-    } 
+    }
 }
 
 #[derive(Default, RustcDecodable)]

@@ -1,14 +1,17 @@
-use rustc_serialize::json::{Json,Object,ToJson};
-use super::{Site, Document};
+use rustc_serialize::json::{Json, Object, ToJson};
+use super::{Document, Site};
 
 pub struct Context<'a> {
     pub site: &'a Site,
-    pub document: &'a Document
+    pub document: &'a Document,
 }
 
 impl<'a> Context<'a> {
     pub fn new<'b>(site: &'b Site, document: &'b Document) -> Context<'b> {
-        Context { site: site, document: document }
+        Context {
+            site: site,
+            document: document,
+        }
     }
 }
 

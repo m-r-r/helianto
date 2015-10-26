@@ -1,6 +1,6 @@
 use std::default::Default;
-use rustc_serialize::json::{ToJson,Json,Object};
-use super::{Settings};
+use rustc_serialize::json::{Json, Object, ToJson};
+use super::Settings;
 
 #[derive(Debug, RustcEncodable, RustcDecodable)]
 pub struct Site {

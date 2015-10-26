@@ -1,9 +1,9 @@
 use std::path::Path;
 use std::fs::File;
-use regex::{Regex};
-use hoedown::{Markdown, Render, Wrapper, Html, Buffer};
-use super::{Reader, Metadata};
-use super::super::{Settings, Error, Result};
+use regex::Regex;
+use hoedown::{Buffer, Html, Markdown, Render, Wrapper};
+use super::{Metadata, Reader};
+use super::super::{Error, Result, Settings};
 
 #[derive(Debug)]
 pub struct MarkdownReader;
@@ -79,7 +79,7 @@ impl Wrapper for HtmlRender {
     fn header(&mut self, ob: &mut Buffer, content: &Buffer, level: i32) {
         if self.before_header {
             if let Ok(title) = content.to_str().map(|s| s.trim()) {
-                self.metadata.insert("title".into(), title.into()); 
+                self.metadata.insert("title".into(), title.into());
                 self.before_header = false;
             }
         } else {
@@ -88,9 +88,10 @@ impl Wrapper for HtmlRender {
     }
 
     fn paragraph(&mut self, ob: &mut Buffer, content: &Buffer) {
-        let is_metadata = content.to_str().ok()
-            .map(|s| self.metadata_regex.is_match(s))
-            .unwrap_or(false);
+        let is_metadata = content.to_str()
+                                 .ok()
+                                 .map(|s| self.metadata_regex.is_match(s))
+                                 .unwrap_or(false);
         if !self.before_header && self.before_metadata && is_metadata {
             self.read_metadata(content);
         } else {

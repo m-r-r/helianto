@@ -1,4 +1,4 @@
-use std::{io, fs};
+use std::{fs, io};
 use std::path::Path;
 use walkdir::DirEntry;
 
@@ -78,14 +78,18 @@ pub fn valid_filename<S: AsRef<Path>>(filename: S) -> bool {
 
 /// Tests wether a directory entry is a not-hidden file.
 pub fn filter_file(entry: &DirEntry) -> bool {
-    entry.file_name().to_str()
-        .and_then(|s| s.chars().next())
-        .map(|c| !INVALID_CHARS.contains(c))
-        .unwrap_or(false) && entry.file_type().is_file()
+    entry.file_name()
+         .to_str()
+         .and_then(|s| s.chars().next())
+         .map(|c| !INVALID_CHARS.contains(c))
+         .unwrap_or(false) && entry.file_type().is_file()
 }
 
 /// Tests wether a directory entry is an Handlebar template.
 pub fn filter_template(entry: &DirEntry) -> bool {
-     filter_file(entry) && entry.file_name().to_str().map(|s| s.ends_with(TEMPLATE_EXTENSION))
+    filter_file(entry) &&
+    entry.file_name()
+         .to_str()
+         .map(|s| s.ends_with(TEMPLATE_EXTENSION))
          .unwrap_or(false)
 }

@@ -1,8 +1,8 @@
-use std::{error, result, fmt};
+use std::{error, fmt, result};
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 use std::borrow::Borrow;
-use toml::{Parser,DecodeError};
+use toml::{DecodeError, Parser};
 
 
 pub type Result<T> = result::Result<T, Error>;
@@ -39,7 +39,7 @@ pub enum Error {
     LoadSettings {
         path: PathBuf,
         cause: Box<error::Error>,
-    }
+    },
 }
 
 
@@ -66,8 +66,10 @@ impl fmt::Display for Error {
                                                             dest.display(),
                                                             cause),
             Error::Render { ref cause } => write!(f, "Rendering failed: {}", cause),
-            Error::LoadSettings { ref path, ref cause } =>
-                write!(f, "Could not read settings file {}: {}", path.display(), cause),
+            Error::LoadSettings { ref path, ref cause } => write!(f,
+                       "Could not read settings file {}: {}",
+                       path.display(),
+                       cause),
         }
     }
 }

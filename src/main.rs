@@ -1,12 +1,12 @@
 extern crate getopts;
 extern crate helianto;
 
-use std::{env,fs};
+use std::{env, fs};
 use std::path::PathBuf;
 use getopts::Options;
 use std::path::Path;
 
-use helianto::{Settings, Generator};
+use helianto::{Generator, Settings};
 
 const SETTINGS_FILE: &'static str = "helianto.toml";
 
@@ -62,7 +62,7 @@ fn main() {
         Ok(s) => s,
         Err(e) => panic!("{}", e),
     };
-        
+
     if let Some(path) = source_dir {
         settings.source_dir = path;
     }
@@ -76,11 +76,13 @@ fn main() {
     });
 }
 
-fn read_settings<P: AsRef<Path>>(cwd: Option<&P>, settings_file: Option<&P>) -> helianto::Result<Settings> {
+fn read_settings<P: AsRef<Path>>(cwd: Option<&P>,
+                                 settings_file: Option<&P>)
+                                 -> helianto::Result<Settings> {
     if let Some(ref path) = settings_file {
         println!("Loading settings from {}.", path.as_ref().display());
         return Settings::from_file(path);
-    } 
+    }
     let settings_file = cwd.map(|p| PathBuf::from(p.as_ref()))
                            .unwrap_or(PathBuf::from("."))
                            .join(SETTINGS_FILE);

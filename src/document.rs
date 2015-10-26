@@ -26,13 +26,20 @@ impl Default for DocumentMetadata {
 
 impl FromIterator<(String,String)> for DocumentMetadata {
     fn from_iter<T>(iterator: T) -> Self
-      where T: IntoIterator<Item=(String,String)> {
+        where T: IntoIterator<Item = (String, String)>
+    {
         let mut metadata = DocumentMetadata::default();
         for (key, value) in iterator {
             match key.to_ascii_lowercase().as_ref() {
-                "title" => { metadata.title = value; },
-                "language" => { metadata.language = Some(value); },
-                "keywords" => { metadata.keywords = value.split(",").map(|s| String::from(s)).collect(); },
+                "title" => {
+                    metadata.title = value;
+                }
+                "language" => {
+                    metadata.language = Some(value);
+                }
+                "keywords" => {
+                    metadata.keywords = value.split(",").map(|s| String::from(s)).collect();
+                }
                 e => println!("Unknown metadata {}", e),
             }
         }
@@ -64,7 +71,7 @@ impl ToJson for Document {
             Json::Object(mut obj) => {
                 obj.insert("content".into(), self.content.to_json());
                 Json::Object(obj)
-            },
+            }
             value => value,
         }
     }

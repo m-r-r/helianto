@@ -15,7 +15,6 @@ mod site;
 mod settings;
 
 use std::path::{Path, PathBuf};
-use std::default::Default;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -28,7 +27,7 @@ use handlebars::Handlebars;
 use utils::PathExt;
 pub use error::{Error, Result};
 use readers::Reader;
-pub use document::{DocumentMetadata,Document};
+pub use document::{Document, DocumentMetadata};
 pub use site::Site;
 use templates::Context;
 pub use settings::Settings;
@@ -87,9 +86,15 @@ impl Generator {
         self.handlebars.clear_templates();
 
         // Default templates :
-        self.handlebars.register_template_string("head.html", include_str!("templates/head.html.hbs").into()).unwrap();
-        self.handlebars.register_template_string("page.html", include_str!("templates/page.html.hbs").into()).unwrap();
-        self.handlebars.register_template_string("foot.html", include_str!("templates/foot.html.hbs").into()).unwrap();
+        self.handlebars
+            .register_template_string("head.html", include_str!("templates/head.html.hbs").into())
+            .unwrap();
+        self.handlebars
+            .register_template_string("page.html", include_str!("templates/page.html.hbs").into())
+            .unwrap();
+        self.handlebars
+            .register_template_string("foot.html", include_str!("templates/foot.html.hbs").into())
+            .unwrap();
 
         let template_dir = self.settings.source_dir.join("_layouts");
 
@@ -99,18 +104,24 @@ impl Generator {
 
 
         let entries = WalkDir::new(template_dir)
-                            .max_depth(7)
-                            .into_iter()
-                            .filter_entry(|entry| entry.file_type().is_dir() || utils::filter_template(entry))
-                            .filter_map(|entry| entry.ok())
-                            .map(|entry| PathBuf::from(entry.path()));
+                          .max_depth(7)
+                          .into_iter()
+                          .filter_entry(|entry| {
+                              entry.file_type().is_dir() || utils::filter_template(entry)
+                          })
+                          .filter_map(|entry| entry.ok())
+                          .map(|entry| PathBuf::from(entry.path()));
 
 
         for entry in entries {
-            let template_name: String = match entry.with_extension("").clone().file_name().and_then(|n| n.to_str()) {
+            let template_name: String = match entry.with_extension("")
+                                                   .clone()
+                                                   .file_name()
+                                                   .and_then(|n| n.to_str()) {
                 Some(s) => s.into(),
                 None => {
-                    println!("Unable to load template file: {}: invalid file name", entry.display());
+                    println!("Unable to load template file: {}: invalid file name",
+                             entry.display());
                     continue;
                 }
             };
@@ -158,7 +169,8 @@ impl Generator {
                 let mut fd = try! { File::create(&dest_file) };
                 try! { fd.write(output.as_ref()) };
                 try! { fd.sync_data() };
-                self.documents.push((dest.to_str().unwrap().into(), Rc::new(document.metadata.clone())));
+                self.documents.push((dest.to_str().unwrap().into(),
+                                     Rc::new(document.metadata.clone())));
                 Ok(())
             })
             .map_err(|err| {
@@ -191,26 +203,29 @@ impl Generator {
     }
 
     fn render_index(&mut self) -> Result<()> {
-        use rustc_serialize::json::{Json,Object,ToJson};
+        use rustc_serialize::json::{Json, Object, ToJson};
 
         self.documents.sort_by(|first, second| {
             first.1.created.unwrap_or(0u64).cmp(&second.1.created.unwrap_or(0u64))
         });
-        
-        let documents: Vec<Json> = self.documents.iter().map(|&(ref url, ref metadata)| {
-            match metadata.to_json() {
-                Json::Object(mut obj) => {
-                    obj.insert("url".into(), url.to_json());
-                    Json::Object(obj)
-                },
-                v => v
-            }
-        }).collect();
+
+        let documents: Vec<Json> = self.documents
+                                       .iter()
+                                       .map(|&(ref url, ref metadata)| {
+                                           match metadata.to_json() {
+                                               Json::Object(mut obj) => {
+                                                   obj.insert("url".into(), url.to_json());
+                                                   Json::Object(obj)
+                                               }
+                                               v => v,
+                                           }
+                                       })
+                                       .collect();
 
         let payload = {
             let mut obj = Object::new();
-            obj.insert("site".into(), self.site.to_json()); 
-            obj.insert("pages".into(), documents.to_json()); 
+            obj.insert("site".into(), self.site.to_json());
+            obj.insert("pages".into(), documents.to_json());
             Json::Object(obj)
         };
 
@@ -251,7 +266,7 @@ impl Generator {
                 Err(_) => continue,
                 Ok(e) => {
                     if e.file_type().is_dir() {
-                        continue
+                        continue;
                     } else {
                         PathBuf::from(e.path())
                     }
@@ -262,7 +277,7 @@ impl Generator {
                 Some(reader) => self.render_document(reader.clone(), &entry),
                 None => self.render_file(&entry),
             };
-            
+
             if let Err(err) = result {
                 println!("{}", err);
             }
