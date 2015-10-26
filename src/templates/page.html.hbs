@@ -5,9 +5,11 @@
       {{{page.content}}}
     {{else}}
       {{#each pages}}
-        <ol>
-            <li><a href="{{url}}">{{title}}</a></li>
-        </ol>
+      <section class="post">
+        <h3 class="post__title">
+          <a href="{{url}}">{{title}}</a>
+        </h3>
+      </section>
       {{/each}}
     {{/if}}
 </main>

@@ -1,7 +1,8 @@
 use std::{error, result, fmt};
 use std::io::Error as IoError;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::borrow::Borrow;
+use toml::{Parser,DecodeError};
 
 
 pub type Result<T> = result::Result<T, Error>;
@@ -33,6 +34,12 @@ pub enum Error {
         dest: PathBuf,
         cause: Box<error::Error>,
     },
+
+    // An error happened while reading the configuration file
+    LoadSettings {
+        path: PathBuf,
+        cause: Box<error::Error>,
+    }
 }
 
 
@@ -59,6 +66,8 @@ impl fmt::Display for Error {
                                                             dest.display(),
                                                             cause),
             Error::Render { ref cause } => write!(f, "Rendering failed: {}", cause),
+            Error::LoadSettings { ref path, ref cause } =>
+                write!(f, "Could not read settings file {}: {}", path.display(), cause),
         }
     }
 }
@@ -72,6 +81,7 @@ impl error::Error for Error {
             Error::Copy { ref cause, .. } => cause.description(),
             Error::Output { ref cause, .. } => cause.description(),
             Error::Render { ref cause, .. } => cause.description(), 
+            Error::LoadSettings { ref cause, .. } => cause.description(), 
         }
     }
 
@@ -82,6 +92,25 @@ impl error::Error for Error {
             Error::Copy { ref cause, .. } => Some(cause.borrow()),
             Error::Output { ref cause, .. } => Some(cause.borrow()),
             Error::Render { ref cause, .. } => Some(cause.borrow()),
+            Error::LoadSettings { ref cause, .. } => Some(cause.borrow()),
+        }
+    }
+}
+
+impl<'a, T> From<(&'a T, Parser<'a>)> for Error where T: AsRef<Path> {
+    fn from(error: (&'a T, Parser<'a>)) -> Error {
+        Error::LoadSettings {
+            path: PathBuf::from(error.0.as_ref()),
+            cause: Box::new(error.1.errors[0].clone()),
+        }
+    }
+}
+
+impl<'a, T> From<(&'a T, DecodeError)> for Error where T: AsRef<Path> {
+    fn from(error: (&'a T, DecodeError)) -> Error {
+        Error::LoadSettings {
+            path: PathBuf::from(error.0.as_ref()),
+            cause: Box::new(error.1),
         }
     }
 }

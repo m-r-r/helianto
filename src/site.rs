@@ -35,9 +35,7 @@ impl Site {
         if let Some(ref title) = setting.site_title {
             site.title = title.clone();
         }
-        if let Some(ref url) = setting.site_url {
-            site.url = url.clone();
-        }
+        site.url = setting.site_url.clone();
         if let Some(ref language) = setting.site_language {
             site.language = Some(language.clone());
         }

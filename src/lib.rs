@@ -4,6 +4,7 @@ extern crate handlebars;
 #[macro_use(wrap)]
 extern crate hoedown;
 extern crate regex;
+extern crate toml;
 
 mod utils;
 mod error;
@@ -11,6 +12,7 @@ mod document;
 mod templates;
 pub mod readers;
 mod site;
+mod settings;
 
 use std::path::{Path, PathBuf};
 use std::default::Default;
@@ -29,34 +31,8 @@ use readers::Reader;
 pub use document::{DocumentMetadata,Document};
 pub use site::Site;
 use templates::Context;
+pub use settings::Settings;
 
-
-#[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
-pub struct Settings {
-    pub source_dir: PathBuf,
-    pub output_dir: PathBuf,
-    pub base_url: String,
-    pub max_depth: usize,
-    pub follow_links: bool,
-    pub site_title: Option<String>,
-    pub site_url: Option<String>,
-    pub site_language: Option<String>,
-}
-
-impl Default for Settings {
-    fn default() -> Settings {
-        Settings {
-            source_dir: PathBuf::from("."),
-            output_dir: PathBuf::from("_output"),
-            base_url: String::from("/"),
-            max_depth: ::std::usize::MAX,
-            follow_links: false,
-            site_title: None,
-            site_url: None,
-            site_language: None,
-        }
-    }
-}
 
 pub struct Generator {
     pub settings: Settings,
