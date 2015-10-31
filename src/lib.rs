@@ -5,6 +5,7 @@ extern crate handlebars;
 extern crate hoedown;
 extern crate regex;
 extern crate toml;
+extern crate chrono;
 
 mod utils;
 mod error;
