@@ -20,6 +20,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::rc::Rc;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use rustc_serialize::json::ToJson;
 use walkdir::{WalkDir, WalkDirIterator};
@@ -85,6 +86,7 @@ impl Generator {
 
     fn load_templates(&mut self) -> Result<()> {
         self.handlebars.clear_templates();
+        self.handlebars.register_helper("date", Box::new(templates::date_helper));
 
         // Default templates :
         self.handlebars
@@ -207,7 +209,7 @@ impl Generator {
         use rustc_serialize::json::{Json, Object, ToJson};
 
         self.documents.sort_by(|first, second| {
-            first.1.created.unwrap_or(0u64).cmp(&second.1.created.unwrap_or(0u64))
+            first.1.created.partial_cmp(&second.1.created).unwrap_or(Ordering::Equal)
         });
 
         let documents: Vec<Json> = self.documents

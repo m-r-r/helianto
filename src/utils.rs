@@ -1,6 +1,9 @@
-use std::{fs, io};
+use std::{fs, io, result};
 use std::path::Path;
 use walkdir::DirEntry;
+use chrono::{self, FixedOffset};
+use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
+use rustc_serialize::json::{ToJson, Json};
 
 #[doc(hidden)]
 pub trait PathExt {
@@ -92,4 +95,34 @@ pub fn filter_template(entry: &DirEntry) -> bool {
          .to_str()
          .map(|s| s.ends_with(TEMPLATE_EXTENSION))
          .unwrap_or(false)
+}
+
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct DateTime(chrono::DateTime<FixedOffset>);
+
+impl DateTime {
+    pub fn from_string(s: &str) -> Option<DateTime> {
+        chrono::DateTime::parse_from_rfc3339(s).ok().map(DateTime)
+    }
+}
+
+impl Decodable for DateTime {
+    fn decode<D: Decoder>(decoder: &mut D) -> result::Result<Self, D::Error> {
+        let datetime_str: String = try! { String::decode(decoder) };
+        chrono::DateTime::parse_from_rfc3339(datetime_str.as_ref())
+            .map_err(|_| decoder.error("Malformed date"))
+            .map(|d| DateTime(d))
+    }
+}
+
+impl Encodable for DateTime {
+    fn encode<S: Encoder>(&self, encoder: &mut S) -> Result<(), S::Error> {
+        self.0.to_rfc3339().encode(encoder)
+    }
+}
+
+impl ToJson for DateTime {
+    fn to_json(&self) -> Json {
+        Json::String(self.0.to_rfc3339())
+    }
 }

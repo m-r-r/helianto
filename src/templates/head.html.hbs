@@ -3,9 +3,119 @@
   <head>
     <meta charset="utf-8" />
     <title>{{page.title}} &dash; {{site.title}}</title>
+    <style>
+      html, body {
+        border: none;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+
+      .page {
+        position: relative;
+        display: table;
+        border-collapse: collapse;
+        height: 100%;
+        width: 100%;
+        border: none;
+        
+        font-family: "Ubuntu", "Droid Sans", "Segoe UI", Candara, "Bitstream Vera Sans", "DejaVu Sans", "Bitstream Vera Sans", "Trebuchet MS", Verdana, "Verdana Ref", sans-serif;
+        font-weight: 300;
+        line-height: 1.5em;
+        color: #222;
+        background-color: #F3F3EC;
+      }
+
+      .page__head,
+      .page__body,
+      .page__foot {
+        display: table-row;
+        margin: 0;
+        padding: 0;
+        border: none;
+      }
+
+      .page__body {
+        height: 100%;
+      }
+
+      .page__foot {
+        border-top: thin dotted silver;
+      }
+
+      .page a {
+        text-decoration: none;
+        color: #990000;
+      }
+
+      .page a:hover {
+        text-decoration: underline;
+      }
+
+      .header {
+        padding: .5em;
+      }
+
+      .header__title,
+      .header__menu {
+        display: inline-block;
+        vertical-align: baseline;
+      }
+
+      .header__title {
+        font-size: 1.1em;
+        line-height: 1em;
+      }
+
+      .header__title a {
+        color: inherit;
+      }
+
+      .header__menu {
+        display: inline-block;
+        padding: 0 .5em;
+      }
+
+      .header__menu > ul,
+      .header__menu > ul > li {
+        list-style-type: none;
+        display: inline-block;
+        margin: 0;
+        padding: 0;
+      }
+
+      .header__menu > ul > li + li:before {
+        content: '~ ';
+        color: #666;
+      }
+
+      .header,
+      .content,
+      .footer {
+        max-width: 60em;
+        margin: 0 auto;
+        padding: 0 .5em;
+      }
+
+      .content hr {
+        border: none;
+        height: 0;
+        margin: 0;
+        padding: 0 0 1.5em 0;
+      }
+
+      .content hr::after {
+        content: '\2042';
+        display: block;
+        text-align: center;
+        line-height: 1em;
+        color: #666;
+      }
+    </style>
   </head>
-  <body>
-    <div class="page">
-      <header role="banner" clas="page__header">
-        <a href="{{site.url}}">{{site.title}}</a>
+  <body class="page">
+    <div class="page__head">
+      <header role="banner" clas="header">
+        <h1 class="header__title"><a href="{{site.url}}">{{site.title}}</a></h1>
       </header>
+    </div>

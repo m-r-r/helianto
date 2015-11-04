@@ -1,13 +1,14 @@
 use std::iter::FromIterator;
 use std::ascii::AsciiExt;
 use rustc_serialize::json::{Json, Object, ToJson};
+use utils::DateTime;
 
 #[derive(Debug, Clone, RustcEncodable, RustcDecodable)]
 pub struct DocumentMetadata {
     pub title: String,
     pub language: Option<String>,
-    pub modified: Option<u64>,
-    pub created: Option<u64>,
+    pub modified: Option<DateTime>,
+    pub created: Option<DateTime>,
     pub keywords: Vec<String>,
 }
 
@@ -39,6 +40,9 @@ impl FromIterator<(String,String)> for DocumentMetadata {
                 }
                 "keywords" => {
                     metadata.keywords = value.split(",").map(|s| String::from(s)).collect();
+                }
+                "created" => {
+                    metadata.created = DateTime::from_string(value.as_ref());
                 }
                 e => println!("Unknown metadata {}", e),
             }

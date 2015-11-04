@@ -39,11 +39,17 @@ pub fn date_helper(c: &handlebars::Context, h: &Helper, _: &Handlebars, rc: &mut
         }))
     };
 
-    let value = if value_param.starts_with("@") {
+    let argument = if value_param.starts_with("@") {
         rc.get_local_var(value_param)
     } else {
         c.navigate(rc.get_path(), value_param)
-    }.render();
+    }.clone();
+
+    let value = if argument.is_null() {
+        return Ok(())
+    } else {
+        argument.render()
+    };
 
     let date = try! {
         DateTime::parse_from_rfc3339(value.as_ref()).map_err(|_| RenderError {
