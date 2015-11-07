@@ -3,7 +3,7 @@ use std::path::Path;
 use walkdir::DirEntry;
 use chrono::{self, FixedOffset};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use rustc_serialize::json::{ToJson, Json};
+use rustc_serialize::json::{Json, ToJson};
 
 #[doc(hidden)]
 pub trait PathExt {
