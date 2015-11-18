@@ -4,6 +4,7 @@ use walkdir::DirEntry;
 use chrono::{self, FixedOffset};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_serialize::json::{Json, ToJson};
+use std::ascii::AsciiExt;
 
 #[doc(hidden)]
 pub trait PathExt {
@@ -124,5 +125,46 @@ impl Encodable for DateTime {
 impl ToJson for DateTime {
     fn to_json(&self) -> Json {
         Json::String(self.0.to_rfc3339())
+    }
+}
+
+
+
+pub trait FromRaw where Self: 'static + Sized {
+    fn from_raw(raw: &str) -> Option<Self>;
+}
+
+impl FromRaw for bool {
+    fn from_raw(raw: &str) -> Option<bool> {
+        match raw.trim().to_ascii_lowercase().as_ref() {
+            "1" | "t" | "true" | "on" | "yes" | "j" | "jes" => Some(true),
+            "0" | "f" | "false" | "off" | "non" | "n" | "ne" => Some(false),
+            _ => None,
+        }
+    }
+}
+
+impl FromRaw for DateTime {
+    fn from_raw(raw: &str) -> Option<DateTime> {
+        DateTime::from_string(raw.trim())
+    }
+}
+
+
+impl FromRaw for String {
+    fn from_raw(raw: &str) -> Option<String> {
+        Some(String::from(raw.trim()))
+    }
+}
+
+impl FromRaw for Vec<String> {
+    fn from_raw(raw: &str) -> Option<Vec<String>> {
+        Some(raw.split(',').flat_map(|v| FromRaw::from_raw(v)).collect())
+    }
+}
+
+impl<T> FromRaw for Option<T> where T: FromRaw {
+    fn from_raw(raw: &str) -> Option<Option<T>> {
+        T::from_raw(raw).map(Some)
     }
 }

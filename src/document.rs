@@ -1,7 +1,9 @@
-use std::iter::FromIterator;
 use std::ascii::AsciiExt;
 use rustc_serialize::json::{Json, Object, ToJson};
-use utils::DateTime;
+use utils::{DateTime, FromRaw};
+use metadata::{Date, Field, Keywords, Text};
+use std::any::Any;
+
 
 #[derive(Debug, Clone, RustcEncodable, RustcDecodable)]
 pub struct DocumentMetadata {
@@ -25,29 +27,33 @@ impl Default for DocumentMetadata {
 }
 
 
-impl FromIterator<(String,String)> for DocumentMetadata {
-    fn from_iter<T>(iterator: T) -> Self
-        where T: IntoIterator<Item = (String, String)>
+impl DocumentMetadata {
+    pub fn from_raw<'l, T>(raw: T) -> Self
+        where T: Iterator<Item = (&'l String, &'l String)>
     {
-        let mut metadata = DocumentMetadata::default();
-        for (key, value) in iterator {
+        let mut this = DocumentMetadata::default();
+
+        macro_rules! set_field (
+            ($map: expr, $name: ident  :  $field: path, $raw: expr) => (
+                match $field(stringify![title]).from_raw($raw.as_ref()) {
+                    Ok(value) => {
+                        $map.$name = Option::unwrap_or(value.into(), $map.$name);
+                    },
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+            )
+        );
+
+        for (key, value) in raw {
             match key.to_ascii_lowercase().as_ref() {
-                "title" => {
-                    metadata.title = value;
-                }
-                "language" => {
-                    metadata.language = Some(value);
-                }
-                "keywords" => {
-                    metadata.keywords = value.split(",").map(|s| String::from(s)).collect();
-                }
-                "created" => {
-                    metadata.created = DateTime::from_string(value.as_ref());
-                }
-                e => println!("Unknown metadata {}", e),
+                "title" => set_field!(this, title: Text, value),
+                _ => continue,
             }
         }
-        metadata
+
+        this
     }
 }
 
@@ -68,6 +74,7 @@ pub struct Document {
     pub metadata: DocumentMetadata,
     pub content: String,
 }
+
 
 impl ToJson for Document {
     fn to_json(&self) -> Json {

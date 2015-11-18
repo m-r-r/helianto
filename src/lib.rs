@@ -6,12 +6,14 @@ extern crate hoedown;
 extern crate regex;
 extern crate toml;
 extern crate chrono;
+extern crate num;
 
 mod utils;
 mod error;
 mod document;
 mod templates;
 pub mod readers;
+mod metadata;
 mod site;
 mod settings;
 
@@ -152,8 +154,9 @@ impl Generator {
                        .map(|relpath| relpath.with_extension("html"))
                        .unwrap();
 
+        let metadata = DocumentMetadata::from_raw(metadata.iter());
         let document = Document {
-            metadata: metadata.into_iter().collect(),
+            metadata: metadata,
             content: body,
         };
 

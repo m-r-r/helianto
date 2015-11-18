@@ -40,6 +40,11 @@ pub enum Error {
         path: PathBuf,
         cause: Box<error::Error>,
     },
+
+    // An error happened while trying to parse a date supplied by the user
+    InvalidDate {
+        date: String,
+    },
 }
 
 
@@ -70,6 +75,8 @@ impl fmt::Display for Error {
                        "Could not read settings file {}: {}",
                        path.display(),
                        cause),
+            Error::InvalidDate { ref date } =>
+                write!(f, "\"{}\" is not a valid date.", date.trim()),
         }
     }
 }
@@ -84,6 +91,7 @@ impl error::Error for Error {
             Error::Output { ref cause, .. } => cause.description(),
             Error::Render { ref cause, .. } => cause.description(), 
             Error::LoadSettings { ref cause, .. } => cause.description(), 
+            Error::InvalidDate { .. } => "Invalid date",
         }
     }
 
@@ -95,6 +103,7 @@ impl error::Error for Error {
             Error::Output { ref cause, .. } => Some(cause.borrow()),
             Error::Render { ref cause, .. } => Some(cause.borrow()),
             Error::LoadSettings { ref cause, .. } => Some(cause.borrow()),
+            Error::InvalidDate { .. } => None,
         }
     }
 }
