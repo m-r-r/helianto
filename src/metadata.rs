@@ -106,6 +106,15 @@ macro_rules! impl_into (
     )
 );
 
+impl<T> Into<Vec<T>> for Value where Value: Into<Option<T>> {
+    fn into(self) -> Vec<T> {
+        match self {
+            Value::Vec(v) => v.into_iter().filter_map(|i| i.into()).collect(),
+            _ => Vec::new(),
+        }
+    }
+}
+
 impl_from!(bool, Value::Bool);
 impl_from!(i64, Value::I64);
 impl_from!(u64, Value::U64);
@@ -155,7 +164,10 @@ fn read_metadata_list(metadata: &str) -> Result<Value> {
 }
 
 
+#[derive(Debug, Clone)]
 pub struct Text(pub &'static str);
+unsafe impl Sync for Text {}
+
 impl Field for Text {
 
     fn get_name(&self) -> &'static str {
@@ -170,10 +182,15 @@ impl Field for Text {
 #[test]
 fn test_text_from_raw() {
     let result = Text("title").from_raw("foo").ok();
+    assert!(result.is_some());
+    let result: Option<String> = result.unwrap().into();
+    assert!(result == Some(String::from("foo")));
 }
 
 
 pub struct Date(pub &'static str);
+unsafe impl Sync for Date {}
+
 impl Field for Date {
 
     fn get_name(&self) -> &'static str {
@@ -189,6 +206,8 @@ impl Field for Date {
 
 
 pub struct Keywords(pub &'static str);
+unsafe impl Sync for Keywords {}
+
 impl Field for Keywords {
 
     fn get_name(&self) -> &'static str {

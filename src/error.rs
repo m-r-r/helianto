@@ -45,6 +45,11 @@ pub enum Error {
     InvalidDate {
         date: String,
     },
+    
+    // A document contains an unkown metadata field
+    UnknownMetadataField {
+        name: String
+    }
 }
 
 
@@ -77,6 +82,8 @@ impl fmt::Display for Error {
                        cause),
             Error::InvalidDate { ref date } =>
                 write!(f, "\"{}\" is not a valid date.", date.trim()),
+            Error::UnknownMetadataField { ref name } =>
+                write!(f, "Unknown metadata \"{}\".", name),
         }
     }
 }
@@ -92,6 +99,7 @@ impl error::Error for Error {
             Error::Render { ref cause, .. } => cause.description(), 
             Error::LoadSettings { ref cause, .. } => cause.description(), 
             Error::InvalidDate { .. } => "Invalid date",
+            Error::UnknownMetadataField { .. } => "Unknown metadata field",
         }
     }
 
@@ -103,7 +111,7 @@ impl error::Error for Error {
             Error::Output { ref cause, .. } => Some(cause.borrow()),
             Error::Render { ref cause, .. } => Some(cause.borrow()),
             Error::LoadSettings { ref cause, .. } => Some(cause.borrow()),
-            Error::InvalidDate { .. } => None,
+            _ => None,
         }
     }
 }
