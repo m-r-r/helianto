@@ -45,11 +45,11 @@ pub enum Error {
     InvalidDate {
         date: String,
     },
-    
+
     // A document contains an unkown metadata field
     UnknownMetadataField {
-        name: String
-    }
+        name: String,
+    },
 }
 
 
@@ -82,8 +82,7 @@ impl fmt::Display for Error {
                        cause),
             Error::InvalidDate { ref date } =>
                 write!(f, "\"{}\" is not a valid date.", date.trim()),
-            Error::UnknownMetadataField { ref name } =>
-                write!(f, "Unknown metadata \"{}\".", name),
+            Error::UnknownMetadataField { ref name } => write!(f, "Unknown metadata \"{}\".", name),
         }
     }
 }

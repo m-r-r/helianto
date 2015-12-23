@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use getopts::Options;
 use std::path::Path;
 
-use helianto::{Generator, Settings};
+use helianto::{Compiler, Settings};
 
 const SETTINGS_FILE: &'static str = "helianto.toml";
 
@@ -71,7 +71,7 @@ fn main() {
         settings.output_dir = path;
     }
 
-    Generator::new(&settings).run().unwrap_or_else(|err| {
+    Compiler::new(&settings).run().unwrap_or_else(|err| {
         println!("Compilation failed: {}", err);
     });
 }

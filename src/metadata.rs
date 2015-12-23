@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::iter::{FromIterator, Iterator};
 use std::collections::BTreeMap;
 use rustc_serialize::json::{Json, ToJson};

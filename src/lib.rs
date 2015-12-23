@@ -13,16 +13,16 @@ mod error;
 mod document;
 mod templates;
 pub mod readers;
-mod metadata;
+pub mod metadata;
 mod site;
 mod settings;
+mod generators;
 
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::rc::Rc;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use rustc_serialize::json::ToJson;
 use walkdir::{WalkDir, WalkDirIterator};
@@ -31,28 +31,31 @@ use handlebars::Handlebars;
 use utils::PathExt;
 pub use error::{Error, Result};
 use readers::Reader;
-pub use document::{Document, DocumentMetadata};
+pub use document::{Document, DocumentMetadata, DocumentContent};
 pub use site::Site;
 use templates::Context;
 pub use settings::Settings;
+pub use generators::Generator;
 
 
-pub struct Generator {
+pub struct Compiler {
     pub settings: Settings,
+    pub site: Site,
     handlebars: Handlebars,
     readers: HashMap<String, Rc<Reader>>,
-    site: Site,
-    documents: Vec<(String, Rc<DocumentMetadata>)>,
+    generators: Vec<Rc<Generator>>,
+    documents: HashMap<String, Rc<DocumentMetadata>>,
 }
 
-impl Generator {
-    pub fn new(settings: &Settings) -> Generator {
-        let mut generator = Generator {
+impl Compiler {
+    pub fn new(settings: &Settings) -> Compiler {
+        let mut generator = Compiler {
             settings: settings.clone(),
             readers: HashMap::new(),
             handlebars: Handlebars::new(),
             site: Site::new(settings),
-            documents: Vec::new(),
+            documents: HashMap::new(),
+            generators: Vec::new(),
         };
         generator.add_reader::<readers::MarkdownReader>();
         generator
@@ -84,6 +87,10 @@ impl Generator {
         for &extension in T::extensions() {
             self.readers.insert(extension.into(), reader.clone());
         }
+    }
+
+    pub fn add_generator<T: Generator + 'static>(&mut self) {
+        self.generators.push(Rc::new(T::new()));
     }
 
     fn load_templates(&mut self) -> Result<()> {
@@ -154,10 +161,9 @@ impl Generator {
                        .map(|relpath| relpath.with_extension("html"))
                        .unwrap();
 
-        let metadata = DocumentMetadata::from_raw(metadata.iter());
         let document = Document {
-            metadata: metadata,
-            content: body,
+            metadata: try! { DocumentMetadata::from_raw(metadata.into_iter()) },
+            content: DocumentContent::from(body),
         };
 
 
@@ -175,8 +181,8 @@ impl Generator {
                 let mut fd = try! { File::create(&dest_file) };
                 try! { fd.write(output.as_ref()) };
                 try! { fd.sync_data() };
-                self.documents.push((dest.to_str().unwrap().into(),
-                                     Rc::new(document.metadata.clone())));
+                self.documents.insert(dest.to_str().unwrap().into(),
+                                     Rc::new(document.metadata.clone()));
                 Ok(())
             })
             .map_err(|err| {
@@ -207,9 +213,10 @@ impl Generator {
                 }
             })
     }
-
+/*
     fn render_index(&mut self) -> Result<()> {
         use rustc_serialize::json::{Json, Object, ToJson};
+        let documents.values().collect();
 
         self.documents.sort_by(|first, second| {
             first.1.created.partial_cmp(&second.1.created).unwrap_or(Ordering::Equal)
@@ -257,6 +264,7 @@ impl Generator {
                 }
             })
     }
+*/
 
     pub fn run(&mut self) -> Result<()> {
         self.check_settings();
@@ -289,7 +297,6 @@ impl Generator {
             }
         }
 
-        try! { self.render_index() }
 
         Ok(())
     }
