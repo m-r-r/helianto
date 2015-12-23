@@ -1,13 +1,14 @@
 use std::ascii::AsciiExt;
+use std::collections::HashMap;
 use rustc_serialize::json::{Json, Object, ToJson};
-use super::{Result, Error};
+use super::{Error, Result};
 use utils::{DateTime, FromRaw};
 use metadata::{Date, Field, Keywords, Text, Value};
 
 const TITLE_FIELD: &'static Field = &Text("title") as &Field;
 const CREATED_FIELD: &'static Field = &Date("created") as &Field;
 const MODIFIED_FIELD: &'static Field = &Date("modified") as &Field;
-const KEYWORDS_FIELD:  &'static Field = &Keywords("keywords") as &Field;
+const KEYWORDS_FIELD: &'static Field = &Keywords("keywords") as &Field;
 
 #[derive(Debug, Clone, RustcEncodable, RustcDecodable)]
 pub struct DocumentMetadata {
@@ -32,47 +33,38 @@ impl Default for DocumentMetadata {
 
 
 impl DocumentMetadata {
-    pub fn from_raw<'l, T>(raw: T) -> Self
-        where T: Iterator<Item = (&'l String, &'l String)>
+    pub fn from_raw<T>(raw: T) -> Result<DocumentMetadata>
+        where T: Iterator<Item = (String, String)>
     {
-        let mut this = DocumentMetadata::default();
+        let mut metadata = DocumentMetadata::default();
+        let mut raw_metadata: HashMap<String, String> = raw.collect();
 
-
-        for (key, raw_value) in raw {
-            let key = key.to_ascii_lowercase();
-            
-            match Self::read_raw_field(key.as_ref(), raw_value) {
-               Ok(value) => {
-                   match key.as_ref() {
-                       "title" => { this.title = Option::unwrap_or_else(value.into(), String::new) },
-                       "modified" => { this.modified = value.into() },
-                       "created" => { this.created = value.into() },
-                       "keywords" => { this.keywords = value.into() },
-                       _ => (),
-                   }
-               }
-                _ => continue,
-            }
+        if let Some(title) = raw_metadata.remove("title") {
+            metadata.title = title.into();
         }
 
-        this
-    }
-    
-    fn read_raw_field(key: &str, raw: &str) -> Result<Value> {
+        if let Some(keywords) = raw_metadata.remove("keywords") {
+            metadata.keywords = try! { KEYWORDS_FIELD.from_raw(keywords.as_ref()) } .into();
+        }
 
-        let field = match key {
-            "title" => TITLE_FIELD,
-            "created" => CREATED_FIELD,
-            "modified" => MODIFIED_FIELD,
-            "keywords" => KEYWORDS_FIELD,
-            other => return Err(
-                Error::UnknownMetadataField {
-                    name: key.into(),
-                }
-            )
-        };
-        
-        field.from_raw(raw)
+        Ok(metadata)
+    }
+}
+
+#[test]
+fn test_from_raw() {
+    let raw_metadata: Vec<(String, String)> = vec! [
+        ("title".into(), "Foo bar".into()),
+        ("language".into(), "en".into()),
+        ("created".into(), "2015-12-23 02:12:35+01:00".into()),
+        ("keywords".into(), "foo, bar".into()),
+    ];
+
+    let metadata = DocumentMetadata::from_raw(raw_metadata.into_iter());
+    assert!(metadata.is_ok());
+    if let Ok(result) = metadata {
+        assert_eq!(result.title, "Foo bar");
+        assert_eq!(result.keywords.as_ref(), ["foo", "bar"]);
     }
 }
 
