@@ -1,0 +1,40 @@
+.page__top,
+.page__middle,
+.page__bottom {
+  display: table-row;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.page__middle {
+  height: 100%;
+  border-bottom: thin dotted silver;
+}
+
+.header, .content, .footer {
+  display: block;
+  padding: 1em;
+  max-width: 45em;
+  margin: 0 auto;
+}
+
+.header__title {
+  color: #966;
+  font-size: 1.5em;
+}
+
+.header__title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a, a:link, a:visited {
+  color: #699;
+}
+
+.footer {
+  text-align: center;
+  font-size: 0.95em;
+  color: #888;
+}

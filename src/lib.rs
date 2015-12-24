@@ -155,34 +155,21 @@ impl Compiler {
         Ok(())
     }
 
-    fn render_document(&mut self, reader: Rc<Reader>, path: &Path) -> Result<()> {
-        let (body, metadata) = try! { reader.load(path) };
-        let dest = path.relative_from_(&self.settings.source_dir)
-                       .map(|relpath| relpath.with_extension("html"))
-                       .unwrap();
-
-        let document = Document {
-            metadata: try! { DocumentMetadata::from_raw(metadata.into_iter()) },
-            content: DocumentContent::from(body),
-        };
-
-
-        let payload = Context::new(&self.site, &document).to_json();
+    fn render_context(&self, context: Context, path: &Path) -> Result<()> {
+        let payload = context.to_json();
         let output: String = try! { self.handlebars.render("page.html", &payload)
                 .map_err(|err| Error::Render {
                     cause: Box::new(err)
                 })
         };
 
-        let dest_file = self.settings.output_dir.join(&dest);
+        let dest_file = self.settings.output_dir.join(&path);
         let dest_dir = dest_file.parent().unwrap();
         fs::create_dir_all(&dest_dir)
             .and_then(|_| {
                 let mut fd = try! { File::create(&dest_file) };
                 try! { fd.write(output.as_ref()) };
                 try! { fd.sync_data() };
-                self.documents.insert(dest.to_str().unwrap().into(),
-                                     Rc::new(document.metadata.clone()));
                 Ok(())
             })
             .map_err(|err| {
@@ -192,8 +179,31 @@ impl Compiler {
                 }
             })
     }
+    
+    fn build_document(&mut self, reader: Rc<Reader>, path: &Path) -> Result<()> {
+        let (body, metadata) = try! { reader.load(path) };
+        let dest = path.relative_from_(&self.settings.source_dir)
+                       .map(|relpath| relpath.with_extension("html"))
+                       .unwrap();
 
-    fn render_file(&mut self, path: &Path) -> Result<()> {
+        let document = Document {
+            metadata: DocumentMetadata {
+                url: dest.to_str().unwrap().into(),
+                .. try! { DocumentMetadata::from_raw(metadata.into_iter()) }
+            },
+            content: DocumentContent::from(body),
+        };
+
+
+        self.render_context(Context::new(&self.site, &document), &dest)
+            .and_then(|_| {
+                self.documents.insert(dest.to_str().unwrap().into(),
+                                     Rc::new(document.metadata.clone()));
+                Ok(())
+            })
+    }
+
+    fn copy_file(&mut self, path: &Path) -> Result<()> {
         let dest = path.relative_from_(&self.settings.source_dir)
                        .map(|relpath| self.settings.output_dir.join(relpath))
                        .unwrap();
@@ -213,58 +223,27 @@ impl Compiler {
                 }
             })
     }
-/*
-    fn render_index(&mut self) -> Result<()> {
-        use rustc_serialize::json::{Json, Object, ToJson};
-        let documents.values().collect();
 
-        self.documents.sort_by(|first, second| {
-            first.1.created.partial_cmp(&second.1.created).unwrap_or(Ordering::Equal)
-        });
+    fn run_generators(&mut self) -> Result<()> {
+        let documents: Vec<Rc<DocumentMetadata>> = self.documents.values().map(|rc| rc.clone()).collect();
 
-        let documents: Vec<Json> = self.documents
-                                       .iter()
-                                       .map(|&(ref url, ref metadata)| {
-                                           match metadata.to_json() {
-                                               Json::Object(mut obj) => {
-                                                   obj.insert("url".into(), url.to_json());
-                                                   Json::Object(obj)
-                                               }
-                                               v => v,
-                                           }
-                                       })
-                                       .collect();
+        for generator in self.generators.iter() {
+            let generated_docs = try! { generator.generate(documents.as_ref()) };
 
-        let payload = {
-            let mut obj = Object::new();
-            obj.insert("site".into(), self.site.to_json());
-            obj.insert("pages".into(), documents.to_json());
-            Json::Object(obj)
-        };
-
-        let output: String = try! { self.handlebars.render("page.html", &payload)
-                .map_err(|err| Error::Render {
-                    cause: Box::new(err)
-                })
-        };
-
-        let dest_file = self.settings.output_dir.join("index.html");
-        let dest_dir = dest_file.parent().unwrap();
-        fs::create_dir_all(&dest_dir)
-            .and_then(|_| {
-                let mut fd = try! { File::create(&dest_file) };
-                try! { fd.write(output.as_ref()) };
-                try! { fd.sync_data() };
-                Ok(())
-            })
-            .map_err(|err| {
-                Error::Output {
-                    dest: dest_dir.into(),
-                    cause: Box::new(err),
+            for generated_doc in generated_docs.iter() {
+                if self.documents.contains_key(&generated_doc.metadata.url) {
+                    continue;
                 }
-            })
+
+                let dest = PathBuf::from(&generated_doc.metadata.url);
+                if let Err(e) = self.render_context(Context::new(&self.site, generated_doc), &dest) {
+                    return Err(e);
+                }
+            }
+        }
+
+        Ok(())
     }
-*/
 
     pub fn run(&mut self) -> Result<()> {
         self.check_settings();
@@ -288,14 +267,16 @@ impl Compiler {
             };
 
             let result = match self.get_reader(&entry) {
-                Some(reader) => self.render_document(reader.clone(), &entry),
-                None => self.render_file(&entry),
+                Some(reader) => self.build_document(reader.clone(), &entry),
+                None => self.copy_file(&entry),
             };
 
             if let Err(err) = result {
                 println!("{}", err);
             }
         }
+
+        try!{self.run_generators()};
 
 
         Ok(())

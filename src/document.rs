@@ -13,6 +13,7 @@ const KEYWORDS_FIELD: &'static Field = &Keywords("keywords") as &Field;
 
 #[derive(Debug, Clone, RustcEncodable, RustcDecodable)]
 pub struct DocumentMetadata {
+    pub url: String,
     pub title: String,
     pub language: Option<String>,
     pub modified: Option<DateTime>,
@@ -23,6 +24,7 @@ pub struct DocumentMetadata {
 impl Default for DocumentMetadata {
     fn default() -> DocumentMetadata {
         DocumentMetadata {
+            url: "".into(),
             title: "".into(),
             language: None,
             modified: None,
@@ -73,6 +75,7 @@ fn test_from_raw() {
 impl ToJson for DocumentMetadata {
     fn to_json(&self) -> Json {
         let mut obj = Object::new();
+        obj.insert("url".into(), self.url.to_json());
         obj.insert("title".into(), self.title.to_json());
         obj.insert("language".into(), self.language.to_json());
         obj.insert("modified".into(), self.modified.to_json());
