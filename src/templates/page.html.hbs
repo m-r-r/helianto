@@ -8,7 +8,7 @@
       <ul class="posts">
           {{#each page.documents}}
           <li>
-            {{if created}}
+            {{#if created}}
                <time class="post__date" datetime="{{created}}">{{date created format=%Y-%m-%d }}</time>
                <span aria-hidden="true">→</span>
             {{/if}}
