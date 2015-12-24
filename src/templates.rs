@@ -27,10 +27,7 @@ impl<'a> ToJson for Context<'a> {
 }
 
 
-#[derive(Clone, Copy)]
-pub struct DateHelper;
-
-pub fn date_helper(c: &handlebars::Context,
+fn date_helper(c: &handlebars::Context,
                    h: &Helper,
                    _: &Handlebars,
                    rc: &mut RenderContext)
@@ -68,4 +65,38 @@ pub fn date_helper(c: &handlebars::Context,
         write!(rc.writer, "{}", date.format(format_param.as_ref()))
     };
     Ok(())
+}
+
+
+fn join_helper(c: &handlebars::Context,
+                   h: &Helper,
+                   _: &Handlebars,
+                   rc: &mut RenderContext)
+                   -> Result<(), RenderError> {
+    let value_param = try!(h.param(0).ok_or_else(|| {
+        RenderError { desc: "Param not found for helper \"join\"" }
+    }));
+
+    let separator = h.hash_get("separator")
+        .and_then(|json| json.as_string())
+        .unwrap_or(", ");
+
+    let argument = if value_param.starts_with("@") {
+                       rc.get_local_var(value_param)
+                   } else {
+                       c.navigate(rc.get_path(), value_param)
+                   }
+                   .clone();
+
+    if let Some(items) = argument.as_array() {
+        let result: Vec<String> = items.iter().map(|item| item.render()).collect();
+        let _ = try!(write!(rc.writer, "{}", result.join(separator)));
+    }
+
+    Ok(())
+}
+
+pub fn register_helpers(handlebars: &mut Handlebars) {
+    handlebars.register_helper("date", Box::new(date_helper));
+    handlebars.register_helper("join", Box::new(join_helper));
 }

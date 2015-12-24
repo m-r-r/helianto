@@ -1,12 +1,12 @@
 use std::iter::FromIterator;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::ascii::AsciiExt;
 use rustc_serialize::json::{Json, Object, ToJson};
 use super::{Error, Result};
 use utils::{DateTime, FromRaw};
 use metadata::{Date, Field, Keywords, Text};
 
-const TITLE_FIELD: &'static Field = &Text("title") as &Field;
 const CREATED_FIELD: &'static Field = &Date("created") as &Field;
 const MODIFIED_FIELD: &'static Field = &Date("modified") as &Field;
 const KEYWORDS_FIELD: &'static Field = &Keywords("keywords") as &Field;
@@ -40,14 +40,28 @@ impl DocumentMetadata {
         where T: Iterator<Item = (String, String)>
     {
         let mut metadata = DocumentMetadata::default();
-        let mut raw_metadata: HashMap<String, String> = raw.collect();
+        let mut raw_metadata: HashMap<String, String> = raw.map(|(key, value)| {
+            (key.to_ascii_lowercase(), value)
+        }).collect();
 
         if let Some(title) = raw_metadata.remove("title") {
-            metadata.title = title.into();
+            metadata.title = title.trim().into();
+        }
+
+        if let Some(language) = raw_metadata.remove("language") {
+            metadata.language = Some(language.trim().into());
         }
 
         if let Some(keywords) = raw_metadata.remove("keywords") {
             metadata.keywords = try! { KEYWORDS_FIELD.from_raw(keywords.as_ref()) }.into();
+        }
+
+        if let Some(ref created) = raw_metadata.remove("created") {
+            metadata.created = try! { CREATED_FIELD.from_raw(created) }.into();
+        }
+
+        if let Some(ref modified) = raw_metadata.remove("modified") {
+            metadata.modified = try! { MODIFIED_FIELD.from_raw(modified) }.into();
         }
 
         Ok(metadata)
@@ -59,7 +73,7 @@ fn test_from_raw() {
     let raw_metadata: Vec<(String, String)> = vec! [
         ("title".into(), "Foo bar".into()),
         ("language".into(), "en".into()),
-        ("created".into(), "2015-12-23 02:12:35+01:00".into()),
+        ("created".into(), "2015-12-23T02:12:35+01:00".into()),
         ("keywords".into(), "foo, bar".into()),
     ];
 

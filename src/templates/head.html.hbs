@@ -1,11 +1,20 @@
 <!DOCTYPE html>
+{{#if page.language}}
+<html lang="{{page.language}}">
+{{elseif site.language}}
+<html lang="{{site.language}}">
+{{else}}
 <html>
+{{/if}}
   <head>
     <meta charset="utf-8" />
     <title>{{page.title}} &dash; {{site.title}}</title>
     <link rel="stylesheet" type="text/css" charset="utf-8" href="/css/normalize.css" />
     <link rel="stylesheet" type="text/css" charset="utf-8" href="/css/skeleton.css" />
     <link rel="stylesheet" type="text/css" charset="utf-8" href="/css/custom.css" />
+    {{#if page.keywords}}
+      <meta name="keywords" content="{{join page.keywords}}" />
+    {{/if}}
   </head>
   <body class="page">
     <div class="page__top">

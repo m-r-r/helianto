@@ -96,7 +96,7 @@ impl Compiler {
 
     fn load_templates(&mut self) -> Result<()> {
         self.handlebars.clear_templates();
-        self.handlebars.register_helper("date", Box::new(templates::date_helper));
+        templates::register_helpers(&mut self.handlebars);
 
         // Default templates :
         self.handlebars
