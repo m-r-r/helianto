@@ -49,7 +49,7 @@ pub struct Compiler {
 
 impl Compiler {
     pub fn new(settings: &Settings) -> Compiler {
-        let mut generator = Compiler {
+        let mut compiler = Compiler {
             settings: settings.clone(),
             readers: HashMap::new(),
             handlebars: Handlebars::new(),
@@ -57,8 +57,9 @@ impl Compiler {
             documents: HashMap::new(),
             generators: Vec::new(),
         };
-        generator.add_reader::<readers::MarkdownReader>();
-        generator
+        compiler.add_reader::<readers::MarkdownReader>();
+        compiler.add_generator::<generators::IndexGenerator>();
+        compiler
     }
 
 
@@ -195,6 +196,7 @@ impl Compiler {
         };
 
 
+        println!("Rendering document {} in {} ...", path.display(), dest.display());
         self.render_context(Context::new(&self.site, &document), &dest)
             .and_then(|_| {
                 self.documents.insert(dest.to_str().unwrap().into(),
@@ -212,7 +214,7 @@ impl Compiler {
         fs::create_dir_all(&dest_dir)
             .and_then(|_| fs::copy(path, &dest))
             .and_then(|_| {
-                println!("{} -> {}", path.display(), dest.display());
+                println!("Copying {} to {}", path.display(), dest.display());
                 Ok(())
             })
             .map_err(|err| {
@@ -234,8 +236,9 @@ impl Compiler {
                 if self.documents.contains_key(&generated_doc.metadata.url) {
                     continue;
                 }
+                println!("Running generator");
 
-                let dest = PathBuf::from(&generated_doc.metadata.url);
+                let dest = utils::remove_path_prefix(&generated_doc.metadata.url);
                 if let Err(e) = self.render_context(Context::new(&self.site, generated_doc), &dest) {
                     return Err(e);
                 }

@@ -109,6 +109,12 @@ pub struct Document {
     pub content: DocumentContent,
 }
 
+impl Document {
+    pub fn new(metadata: DocumentMetadata, content: DocumentContent) -> Document {
+        Document { metadata: metadata, content: content }
+    }
+}
+
 
 impl ToJson for Document {
     fn to_json(&self) -> Json {

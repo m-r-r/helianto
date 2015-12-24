@@ -1,5 +1,5 @@
 use std::{fs, io, result};
-use std::path::Path;
+use std::path::{PathBuf, Path, Component};
 use walkdir::DirEntry;
 use chrono::{self, FixedOffset};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
@@ -77,6 +77,20 @@ pub fn valid_filename<S: AsRef<Path>>(filename: S) -> bool {
             .unwrap_or(false)
 }
 
+
+/// Remove the prefixes from a path
+pub fn remove_path_prefix<S: AsRef<Path>>(path: S) -> PathBuf {
+    path.as_ref()
+        .components()
+        .filter_map(|component| {
+            if let Component::Normal(part) = component {
+                Some(part)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
 
 
