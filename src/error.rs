@@ -41,6 +41,11 @@ pub enum Error {
         cause: Box<error::Error>,
     },
 
+    // The software is misconfigured
+    Settings {
+        message: String,
+    },
+
     // An error happened while trying to parse a date supplied by the user
     InvalidDate {
         date: String,
@@ -83,6 +88,7 @@ impl fmt::Display for Error {
             Error::InvalidDate { ref date } =>
                 write!(f, "\"{}\" is not a valid date.", date.trim()),
             Error::UnknownMetadataField { ref name } => write!(f, "Unknown metadata \"{}\".", name),
+            Error::Settings { ref message } => write!(f, "{}", message),
         }
     }
 }
@@ -99,6 +105,7 @@ impl error::Error for Error {
             Error::LoadSettings { ref cause, .. } => cause.description(), 
             Error::InvalidDate { .. } => "Invalid date",
             Error::UnknownMetadataField { .. } => "Unknown metadata field",
+            Error::Settings { .. } => "Invalid configuration",
         }
     }
 

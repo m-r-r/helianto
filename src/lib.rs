@@ -65,16 +65,22 @@ impl Compiler {
     }
 
 
-    fn check_settings(&self) {
+    fn check_settings(&self) -> Result<()> {
         let Settings { ref source_dir, ref output_dir, .. } = self.settings;
 
         if !source_dir.is_dir() {
-            panic!("{} is not a directory", source_dir.display());
+            return Err(Error::Settings {
+                message: format!("{} must be an existing directory", source_dir.display()),
+            });
         }
 
         if output_dir.exists() && !output_dir.is_dir() {
-            panic!("{} must be a directory", output_dir.display());
+            return Err(Error::Settings {
+                message: format!("{} must be a directory", output_dir.display()),
+            });
         }
+
+        Ok(())
     }
 
     pub fn get_reader(&self, path: &Path) -> Option<Rc<Reader>> {
@@ -251,7 +257,7 @@ impl Compiler {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        self.check_settings();
+        try!{self.check_settings()};
         try!{self.load_templates()};
 
         let entries = WalkDir::new(&self.settings.source_dir)
