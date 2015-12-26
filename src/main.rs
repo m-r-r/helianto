@@ -4,15 +4,26 @@ extern crate stdio_logger;
 #[macro_use]
 extern crate log;
 
-use std::{env, fs, process};
+use std::{env, fs, process, io};
 use std::path::PathBuf;
 use getopts::Options;
 use std::path::Path;
+use std::io::Write;
 use log::{LogLevelFilter};
 
-use helianto::{Compiler, Settings};
+use helianto::{Error, Result, Compiler, Settings};
 
 const SETTINGS_FILE: &'static str = "helianto.toml";
+
+const DEFAULT_FILES: &'static [(&'static str, &'static [u8])] = &[
+    ("css/normalize.css",      include_bytes!["../example_data/css/normalize.css"] as &'static [u8]),
+    ("css/skeleton.css",       include_bytes!["../example_data/css/skeleton.css"]),
+    ("css/custom.css",         include_bytes!["../example_data/css/custom.css"]),
+    ("_layouts/head.html.hbs", include_bytes!["templates/head.html.hbs"]),
+    ("_layouts/foot.html.hbs", include_bytes!["templates/foot.html.hbs"]),
+    ("_layouts/page.html.hbs", include_bytes!["templates/page.html.hbs"]),
+    ("welcome.markdown",       include_bytes!["../example_data/example.markdown"]),
+];
 
 
 fn print_usage(program: &str, opts: Options) {
@@ -27,6 +38,7 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optopt("s", "settings", "FILE", "use an alternate config file");
+    opts.optflag("i", "init", "populate the source directory with default content");
     opts.optflag("h", "help", "display this help and exit");
     opts.optflag("V", "version", "output version information and exit");
     opts.optflag("q", "quiet", "only display error messages");
@@ -40,7 +52,8 @@ fn main() {
             m
         }
         Err(f) => {
-            panic!(f.to_string())
+            writeln!(&mut io::stderr(), "{}", f.to_string());
+            return process::exit(1);
         }
     };
 
@@ -49,7 +62,7 @@ fn main() {
         return;
     }
 
-    if matches.free.len() > 2 {
+    if matches.free.len() > 2 || (matches.opt_present("init") && matches.free.len() > 1) {
         error!("Invalid number of arguments");
         return process::exit(1);
     }
@@ -84,12 +97,21 @@ fn main() {
         Err(e) => panic!("{}", e),
     };
 
-    if let Some(path) = source_dir {
-        settings.source_dir = path;
+    if let Some(ref path) = source_dir {
+        settings.source_dir = path.clone();
     }
 
-    if let Some(path) = output_dir {
-        settings.output_dir = path;
+    if let Some(ref path) = output_dir {
+        settings.output_dir = path.clone();
+    }
+
+    
+    if matches.opt_present("init") {
+        if matches.opt_present("settings") {
+            error!("Option \"--settings\" can't be used with \"--init\".");
+            return process::exit(1);
+        }
+        return init_content(source_dir.as_ref());
     }
 
     Compiler::new(&settings).run().unwrap_or_else(|err| {
@@ -117,6 +139,55 @@ fn read_settings<P: AsRef<Path>>(cwd: Option<&P>,
 }
 
 
+fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
+    let source_dir: PathBuf = if let Some(path) = source_dir {
+        path.as_ref().into()
+    } else {
+        PathBuf::from(".")
+    };
+    let settings_file = source_dir.join(SETTINGS_FILE);
+
+
+    match unpack_files(DEFAULT_FILES, &source_dir) {
+        Ok(_) => process::exit(0),
+        Err(e) => {
+            error!("{}", e);
+            process::exit(2);
+        }
+    }
+}
+
+
+fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()> {
+    let dest: &Path = dest.as_ref();
+    if files.len() == 0 {
+        Ok(())
+    } else {
+        let current_file = files[0];
+        let dest_file = dest.join(current_file.0);
+        let parent_dir = try! {
+            dest_file.parent().ok_or(Error::Settings {
+                message: format!("\"{}\" is not a valid directory", dest.display()),
+            })
+        };
+
+        debug!("Creating directory {} …", parent_dir.display());
+        try! { fs::create_dir_all(&parent_dir) }
+
+        info!("Creating {} …", current_file.0);
+        let mut fh = try! { fs::File::create(&dest_file) };
+        try! { fh.write(current_file.1).map(void) }
+
+        unpack_files(&files[1..], &dest)
+    }
+}
+
+
 fn is_file(path: &Path) -> bool {
     fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
+}
+
+#[inline]
+fn void<T: 'static>(_arg: T) -> () {
+    ()
 }
