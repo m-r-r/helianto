@@ -7,6 +7,8 @@ extern crate regex;
 extern crate toml;
 extern crate chrono;
 extern crate num;
+#[macro_use]
+extern crate log;
 
 mod utils;
 mod error;
@@ -133,7 +135,7 @@ impl Compiler {
                                                    .and_then(|n| n.to_str()) {
                 Some(s) => s.into(),
                 None => {
-                    println!("Unable to load template file: {}: invalid file name",
+                    error!("Unable to load template file: {}: invalid file name",
                              entry.display());
                     continue;
                 }
@@ -141,14 +143,14 @@ impl Compiler {
 
             let mut source = String::new();
             if let Err(e) = File::open(&entry).and_then(|mut fd| fd.read_to_string(&mut source)) {
-                println!("Unable to load template file {}: {}", entry.display(), e);
+                error!("Unable to load template file {}: {}", entry.display(), e);
                 continue;
             }
 
             match self.handlebars.register_template_string(template_name.as_ref(), source) {
                 Ok(_) => (),
                 Err(e) => {
-                    println!("Could not load tempalte file: {}: {}", entry.display(), e);
+                    error!("Could not load tempalte file: {}: {}", entry.display(), e);
                 }
             }
         }
@@ -196,7 +198,7 @@ impl Compiler {
         };
 
 
-        println!("Rendering document {} in {} ...", path.display(), dest.display());
+        debug!("Rendering document {} in {} ...", path.display(), dest.display());
         self.render_context(Context::new(&self.site, &document), &dest)
             .and_then(|_| {
                 self.documents.insert(dest.to_str().unwrap().into(),
@@ -214,7 +216,7 @@ impl Compiler {
         fs::create_dir_all(&dest_dir)
             .and_then(|_| fs::copy(path, &dest))
             .and_then(|_| {
-                println!("Copying {} to {}", path.display(), dest.display());
+                debug!("Copying {} to {}", path.display(), dest.display());
                 Ok(())
             })
             .map_err(|err| {
@@ -236,7 +238,7 @@ impl Compiler {
                 if self.documents.contains_key(&generated_doc.metadata.url) {
                     continue;
                 }
-                println!("Running generator");
+                trace!("Running generator");
 
                 let dest = utils::remove_path_prefix(&generated_doc.metadata.url);
                 if let Err(e) = self.render_context(Context::new(&self.site, generated_doc), &dest) {
@@ -275,7 +277,7 @@ impl Compiler {
             };
 
             if let Err(err) = result {
-                println!("{}", err);
+                error!("{}", err);
             }
         }
 

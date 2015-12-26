@@ -1,10 +1,14 @@
 extern crate getopts;
 extern crate helianto;
+extern crate stdio_logger;
+#[macro_use]
+extern crate log;
 
-use std::{env, fs};
+use std::{env, fs, process};
 use std::path::PathBuf;
 use getopts::Options;
 use std::path::Path;
+use log::{LogLevelFilter};
 
 use helianto::{Compiler, Settings};
 
@@ -25,6 +29,11 @@ fn main() {
     opts.optopt("s", "settings", "FILE", "use an alternate config file");
     opts.optflag("h", "help", "display this help and exit");
     opts.optflag("V", "version", "output version information and exit");
+    opts.optflag("q", "quiet", "only display error messages");
+
+    if ! cfg!(ndebug) {
+        opts.optflag("D", "debug", "display debug information");
+    }
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => {
@@ -35,13 +44,14 @@ fn main() {
         }
     };
 
-    if matches.opt_present("h") {
+    if matches.opt_present("help") {
         print_usage(&program, opts);
         return;
     }
 
     if matches.free.len() > 2 {
-        panic!("Invalid number of arguments");
+        error!("Invalid number of arguments");
+        return process::exit(1);
     }
 
     let source_dir = if matches.free.len() > 0 {
@@ -56,7 +66,18 @@ fn main() {
         None
     };
 
-    let settings_file = matches.opt_str("s").map(PathBuf::from);
+
+    stdio_logger::init(
+        if matches.opt_present("quiet") {
+            LogLevelFilter::Error
+        } else if matches.opt_present("debug") {
+            LogLevelFilter::Trace
+        } else {
+            LogLevelFilter::Info
+        }
+    ).expect("Could not initialize logging");
+
+    let settings_file = matches.opt_str("settings").map(PathBuf::from);
 
     let mut settings = match read_settings(source_dir.as_ref(), settings_file.as_ref()) {
         Ok(s) => s,
@@ -72,7 +93,8 @@ fn main() {
     }
 
     Compiler::new(&settings).run().unwrap_or_else(|err| {
-        println!("Compilation failed: {}", err);
+        error!("Compilation failed: {}", err);
+        return process::exit(2);
     });
 }
 
@@ -80,14 +102,14 @@ fn read_settings<P: AsRef<Path>>(cwd: Option<&P>,
                                  settings_file: Option<&P>)
                                  -> helianto::Result<Settings> {
     if let Some(ref path) = settings_file {
-        println!("Loading settings from {}.", path.as_ref().display());
+        info!("Loading settings from {}.", path.as_ref().display());
         return Settings::from_file(path);
     }
     let settings_file = cwd.map(|p| PathBuf::from(p.as_ref()))
                            .unwrap_or(PathBuf::from("."))
                            .join(SETTINGS_FILE);
     if is_file(&settings_file) {
-        println!("Loading settings from {}.", settings_file.display());
+        info!("Loading settings from {}.", settings_file.display());
         Settings::from_file(&settings_file)
     } else {
         Ok(Settings::default())
