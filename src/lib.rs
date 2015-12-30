@@ -130,7 +130,10 @@ impl Compiler {
                           .filter_entry(|entry| {
                               entry.file_type().is_dir() || utils::filter_template(entry)
                           })
-                          .filter_map(|entry| entry.ok())
+                          .filter_map(|entry| match entry {
+                              Ok(ref path) if path.file_type().is_file() => Some(path.clone()),
+                              _ => None
+                          })
                           .map(|entry| PathBuf::from(entry.path()));
 
 
@@ -149,7 +152,7 @@ impl Compiler {
 
             let mut source = String::new();
             if let Err(e) = File::open(&entry).and_then(|mut fd| fd.read_to_string(&mut source)) {
-                error!("Unable to load template file {}: {}", entry.display(), e);
+                error!("Unable to read template file {}: {}", entry.display(), e);
                 continue;
             }
 
@@ -265,7 +268,7 @@ impl Compiler {
                           .follow_links(self.settings.follow_links)
                           .into_iter();
 
-        for entry in entries.filter_entry(|entry| utils::valid_filename(entry.path())) {
+        for entry in entries.filter_entry(utils::filter_documents) {
             let entry = match entry {
                 Err(_) => continue,
                 Ok(e) => {

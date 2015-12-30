@@ -68,13 +68,27 @@ static TEMPLATE_EXTENSION: &'static str = ".hbs";
 ///
 /// A valid filename must not start with `.`, `_`, `~`, `#` or `$` and must be at least one
 /// character long.
-pub fn valid_filename<S: AsRef<Path>>(filename: S) -> bool {
-    filename.as_ref()
-            .file_name()
-            .and_then(|filename| filename.to_str())
-            .and_then(|filename_str| filename_str.chars().next())
-            .map(|first_char| !INVALID_CHARS.contains(first_char))
-            .unwrap_or(false)
+fn valid_file_name(file_name: &str) -> bool {
+    file_name.chars().next()
+             .map(|first_char| !INVALID_CHARS.contains(first_char))
+             .unwrap_or(false)
+}
+
+
+pub fn filter_documents(entry: &DirEntry) -> bool {
+    let file_type = entry.file_type();
+    let file_name = match entry.file_name().to_str() {
+        Some(s) => s,
+        None => return false,
+    };
+
+    if file_type.is_dir() {
+        file_name == "." || valid_file_name(file_name)
+    } else if file_type.is_file() {
+        valid_file_name(file_name)
+    } else {
+        false
+    }
 }
 
 
