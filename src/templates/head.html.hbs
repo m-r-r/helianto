@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 {{#if page.language}}
 <html lang="{{page.language}}">
-{{elseif site.language}}
-<html lang="{{site.language}}">
 {{else}}
+{{#if site.language}}
+<html lang="{{site.language}}">
+{{/if}}
 <html>
 {{/if}}
   <head>
