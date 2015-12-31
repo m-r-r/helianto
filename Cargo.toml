@@ -1,13 +1,13 @@
 [package]
 authors = ["Mickaël RAYBAUD-ROIG <raybaudroigm@gmail.com>"]
 description = "A minimalist static website generator"
-include = ["Cargo.toml", "Cargo.lock", "LICENSE.markdown", "src/**/*.rs", "src/templates/*.hbs", "example_data/css/*.css", "example_data/example.markdown"]
-keywords = ["static site", "website", "blog"]
+include = ["Cargo.toml", "Cargo.lock", "README.markdown", "LICENSE.markdown", "src/**/*.rs", "src/templates/*.hbs", "example_data/css/*.css", "example_data/example.markdown"]
+keywords = ["staticsite", "website", "blog"]
 license = "AGPL-3.0"
 name = "helianto"
 readme = "README.markdown"
 repository = "https://github.com/m-r-r/helianto.git"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 
 [dependencies]
 chrono = "0.2.16"

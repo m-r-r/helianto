@@ -10,7 +10,7 @@ dependencies = [
  "num 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "stdio_logger 0.1.0 (git+https://github.com/m-r-r/stdio_logger?tag=0.1.0)",
+ "stdio_logger 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -164,8 +164,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "stdio_logger"
-version = "0.1.0"
-source = "git+https://github.com/m-r-r/stdio_logger?tag=0.1.0#3cb7ccce8f77f7c4ce7dd7ba129f414ccc198db8"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "term-painter 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
