@@ -50,12 +50,12 @@ fn date_helper(c: &handlebars::Context,
                    rc: &mut RenderContext)
                    -> Result<(), RenderError> {
     let value_param = try!(h.param(0).ok_or_else(|| {
-        RenderError { desc: "Param not found for helper \"date\"" }
+        RenderError { desc: "Param not found for helper \"date\"".into() }
     }));
     let format_param = try! { h.hash_get("format").ok_or(RenderError {
-            desc: "Parameter \"format\" missing for helper \"date\""
+            desc: "Parameter \"format\" missing for helper \"date\"".into()
         }).and_then(|json| json.as_string().ok_or(RenderError {
-            desc: "Parameter \"format\" must be a string"
+            desc: "Parameter \"format\" must be a string".into()
         }))
     };
 
@@ -74,7 +74,7 @@ fn date_helper(c: &handlebars::Context,
 
     let date = try! {
         DateTime::parse_from_rfc3339(value.as_ref()).map_err(|_| RenderError {
-            desc: "Parameter #1 is not a valid date"
+            desc: "Parameter #1 is not a valid date".into()
         })
     };
 
@@ -91,7 +91,7 @@ fn join_helper(c: &handlebars::Context,
                    rc: &mut RenderContext)
                    -> Result<(), RenderError> {
     let value_param = try!(h.param(0).ok_or_else(|| {
-        RenderError { desc: "Param not found for helper \"join\"" }
+        RenderError { desc: "Param not found for helper \"join\"".into() }
     }));
 
     let separator = h.hash_get("separator")
