@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use getopts::Options;
 use std::path::Path;
 use std::io::Write;
-use log::{LogLevelFilter};
+use log::{LogLevel};
 
 use helianto::{Error, Result, Compiler, Settings};
 
@@ -101,11 +101,11 @@ fn main() {
 
     stdio_logger::init(
         if matches.opt_present("quiet") {
-            LogLevelFilter::Error
+            LogLevel::Error
         } else if matches.opt_present("debug") {
-            LogLevelFilter::Trace
+            LogLevel::Trace
         } else {
-            LogLevelFilter::Info
+            LogLevel::Info
         }
     ).expect("Could not initialize logging");
 

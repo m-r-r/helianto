@@ -18,10 +18,6 @@ log = "0.3.4"
 num = "0.1.29"
 regex = "0.1.44"
 rustc-serialize = "0.3.16"
+stdio_logger = "0.1.1"
 toml = "0.1.23"
 walkdir = "0.1.5"
-
-[dependencies.stdio_logger]
-git = "https://github.com/m-r-r/stdio_logger"
-optional = false
-tag = "0.1.0"
