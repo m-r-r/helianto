@@ -26,9 +26,10 @@ const DEFAULT_FILES: &'static [(&'static str, &'static [u8])] = &[
 ];
 
 
-fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} FILE [options]", program);
+fn print_usage(program: &str, opts: Options) -> ! {
+    let brief = format!("Usage: {} [options] [SRC [DEST]]", program);
     print!("{}", opts.usage(&brief));
+    process::exit(0)
 }
 
 
@@ -37,7 +38,7 @@ fn main() {
     let program = args[0].clone();
 
     let mut opts = Options::new();
-    opts.optopt("s", "settings", "FILE", "use an alternate config file");
+    opts.optopt("s",  "settings", "use an alternate config file", "FILE");
     opts.optflag("i", "init", "populate the source directory with default content");
     opts.optflag("h", "help", "display this help and exit");
     opts.optflag("V", "version", "output version information and exit");
@@ -58,8 +59,9 @@ fn main() {
     };
 
     if matches.opt_present("help") {
-        print_usage(&program, opts);
-        return;
+        return print_usage(&program, opts);
+    } else if matches.opt_present("version") {
+        return print_version();
     }
 
     if matches.free.len() > 2 || (matches.opt_present("init") && matches.free.len() > 1) {
@@ -155,6 +157,12 @@ fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
             process::exit(2);
         }
     }
+}
+
+
+fn print_version() -> ! {
+    println!("helianto v{}", env!("CARGO_PKG_VERSION"));
+    process::exit(0);
 }
 
 
