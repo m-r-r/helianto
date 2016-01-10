@@ -71,9 +71,12 @@ impl Settings {
                      .map_err(|e| Error::from((path, e)))
         };
 
-        // Make paths relative to the settings file:
-        settings.source_dir = path.as_ref().join(settings.source_dir);
-        settings.output_dir = path.as_ref().join(settings.output_dir);
+        // Make paths relative to the directory containing the settings file:
+        if let Some(settings_dir) = path.as_ref().parent() {
+            settings.source_dir = settings_dir.join(settings.source_dir);
+            settings.output_dir = settings_dir.join(settings.output_dir);
+        }
+
         Ok(settings)
     }
 }
