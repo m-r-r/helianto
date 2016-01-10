@@ -285,7 +285,15 @@ impl Compiler {
                           .follow_links(self.settings.follow_links)
                           .into_iter();
 
-        for entry in entries.filter_entry(utils::filter_documents) {
+        let source_dir = self.settings.source_dir.clone();
+        let entry_filter = |ref e: &walkdir::DirEntry| {
+            let follow = utils::filter_source_entry(&source_dir, e);
+            trace!("filter_source_entry({:?}) -> {:?}", e, follow);
+            follow
+        };
+
+
+        for entry in entries.filter_entry(entry_filter) {
             let entry = match entry {
                 Err(_) => continue,
                 Ok(e) => {

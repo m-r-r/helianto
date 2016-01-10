@@ -22,6 +22,7 @@ use chrono::{self, FixedOffset};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_serialize::json::{Json, ToJson};
 use std::ascii::AsciiExt;
+use std::ffi::OsStr;
 
 #[doc(hidden)]
 pub trait PathExt {
@@ -85,24 +86,30 @@ static TEMPLATE_EXTENSION: &'static str = ".hbs";
 ///
 /// A valid filename must not start with `.`, `_`, `~`, `#` or `$` and must be at least one
 /// character long.
-fn valid_file_name(file_name: &str) -> bool {
-    file_name.chars().next()
+fn valid_file_name<S: AsRef<OsStr> + ?Sized>(file_name: &S) -> bool {
+    file_name.as_ref()
+             .to_str()
+             .and_then(|s| s.chars().next())
              .map(|first_char| !INVALID_CHARS.contains(first_char))
              .unwrap_or(false)
 }
 
 
-pub fn filter_documents(entry: &DirEntry) -> bool {
-    let file_type = entry.file_type();
-    let file_name = match entry.file_name().to_str() {
-        Some(s) => s,
+pub fn filter_source_entry(source_dir: &Path, entry: &DirEntry) -> bool {
+    let path = entry.path();
+
+    if ! path.starts_with(source_dir) {
+        return false
+    }
+
+    let rel_path = match path.relative_from_(source_dir) {
+        Some(value) => value,
         None => return false,
     };
 
-    if file_type.is_dir() {
-        file_name == "." || valid_file_name(file_name)
-    } else if file_type.is_file() {
-        valid_file_name(file_name)
+    if rel_path.components().all(|c| valid_file_name(c.as_os_str())) {
+        let file_type = entry.file_type();
+        file_type.is_dir() || file_type.is_file()
     } else {
         false
     }
