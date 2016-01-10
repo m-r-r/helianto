@@ -45,13 +45,15 @@ impl super::Generator for IndexGenerator {
 
 
         Ok(indexes.into_iter()
-                  .map(|(url, docs)| {
+                  .map(|(url, mut docs)| {
 
                       let meta = DocumentMetadata {
                           url: format!("{}/index.html", url),
                           title: format!("Index of {}", url),
                           ..DocumentMetadata::default()
                       };
+
+                      docs.sort_by(|b, a| a.created.cmp(&b.created));
                       let content = DocumentContent::Index(docs);
 
                       Rc::new(Document::new(meta, content))
