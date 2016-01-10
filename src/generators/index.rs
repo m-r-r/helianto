@@ -56,7 +56,7 @@ impl super::Generator for IndexGenerator {
 
                       let meta = DocumentMetadata {
                           url: format!("{}/index.html", url),
-                          title: format!("Index of {}", url),
+                          title: format!("Index of {}", if url != "" { url } else { "/".into() }),
                           ..DocumentMetadata::default()
                       };
 
