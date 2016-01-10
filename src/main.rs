@@ -40,6 +40,7 @@ const DEFAULT_FILES: &'static [(&'static str, &'static [u8])] = &[
     ("_layouts/foot.html.hbs", include_bytes!["templates/foot.html.hbs"]),
     ("_layouts/page.html.hbs", include_bytes!["templates/page.html.hbs"]),
     ("welcome.markdown",       include_bytes!["../example_data/example.markdown"]),
+    ("helianto.toml",          include_bytes!["../example_data/helianto.toml"]),
 ];
 
 
@@ -70,7 +71,7 @@ fn main() {
             m
         }
         Err(f) => {
-            writeln!(&mut io::stderr(), "{}", f.to_string());
+            let _ = writeln!(&mut io::stderr(), "{}", f.to_string());
             return process::exit(1);
         }
     };
@@ -115,6 +116,7 @@ fn main() {
         Ok(s) => s,
         Err(e) => panic!("{}", e),
     };
+    debug!("settings {:?}", settings);
 
     if let Some(ref path) = source_dir {
         settings.source_dir = path.clone();
@@ -164,8 +166,6 @@ fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
     } else {
         PathBuf::from(".")
     };
-    let settings_file = source_dir.join(SETTINGS_FILE);
-
 
     match unpack_files(DEFAULT_FILES, &source_dir) {
         Ok(_) => process::exit(0),
@@ -190,18 +190,23 @@ fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()>
     } else {
         let current_file = files[0];
         let dest_file = dest.join(current_file.0);
-        let parent_dir = try! {
-            dest_file.parent().ok_or(Error::Settings {
-                message: format!("\"{}\" is not a valid directory", dest.display()),
-            })
-        };
+        
+        if is_file(&dest_file) {
+            info!("Skipping {} : the file already exists", dest_file.display());
+        } else {
+            let parent_dir = try! {
+                dest_file.parent().ok_or(Error::Settings {
+                    message: format!("\"{}\" is not a valid directory", dest.display()),
+                })
+            };
 
-        debug!("Creating directory {} …", parent_dir.display());
-        try! { fs::create_dir_all(&parent_dir) }
+            debug!("Creating directory {} …", parent_dir.display());
+            try! { fs::create_dir_all(&parent_dir) }
 
-        info!("Creating {} …", current_file.0);
-        let mut fh = try! { fs::File::create(&dest_file) };
-        try! { fh.write(current_file.1).map(void) }
+            info!("Creating {} …", current_file.0);
+            let mut fh = try! { fs::File::create(&dest_file) };
+            try! { fh.write(current_file.1).map(void) }
+        }
 
         unpack_files(&files[1..], &dest)
     }
