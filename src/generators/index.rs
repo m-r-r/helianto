@@ -32,15 +32,22 @@ impl super::Generator for IndexGenerator {
         let mut indexes: HashMap<String, Vec<Rc<DocumentMetadata>>> = HashMap::new();
 
         for doc in docs.iter() {
-            let dir: String = PathBuf::from(&doc.url)
-                .parent()
-                .and_then(|p| p.to_str())
-                .unwrap_or("")
-                .into();
+            let mut path: PathBuf = PathBuf::from(&doc.url);
 
-            println!("Adding page {} to the index {}...", doc.url, dir);
-            let documents = indexes.entry(dir).or_insert_with(Vec::new);
-            documents.push(doc.clone());
+
+
+            while let Some(parent) = path.clone().parent() {
+
+                let index_url = match parent.to_str() {
+                    Some(string) => string.into(),
+                    None => continue,
+                };
+
+                let documents = indexes.entry(index_url).or_insert_with(Vec::new);
+                documents.push(doc.clone());
+
+                path = parent.into();
+            }
         }
 
 
