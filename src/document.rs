@@ -20,9 +20,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::ascii::AsciiExt;
 use rustc_serialize::json::{Json, Object, ToJson};
-use super::{Error, Result};
+use super::Result;
 use utils::{DateTime, FromRaw};
-use metadata::{Date, Field, Keywords, Text};
+use metadata::{Date, Field, Keywords};
 
 const CREATED_FIELD: &'static Field = &Date("created") as &Field;
 const MODIFIED_FIELD: &'static Field = &Date("modified") as &Field;
