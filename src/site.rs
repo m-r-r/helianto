@@ -49,9 +49,7 @@ impl Default for Site {
 impl Site {
     pub fn new(setting: &Settings) -> Site {
         let mut site = Site::default();
-        if let Some(ref title) = setting.site_title {
-            site.title = title.clone();
-        }
+        site.title = setting.site_title.clone();
         site.url = setting.site_url.clone();
         if let Some(ref language) = setting.site_language {
             site.language = Some(language.clone());

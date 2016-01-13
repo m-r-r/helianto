@@ -131,6 +131,33 @@ pub fn remove_path_prefix<S: AsRef<Path>>(path: S) -> PathBuf {
 }
 
 
+/// Remove the dot at the begining of a path
+pub fn remove_leading_dot<S: AsRef<Path>>(path: S) -> PathBuf {
+    let path_ref = path.as_ref();
+    if path_ref.starts_with(".") {
+        path_ref.components()
+            .skip(1)
+            .map(Component::as_os_str)
+            .collect()
+    } else {
+        path_ref.into()
+    }
+}
+
+#[test]
+fn test_remove_leading_dot() {
+    const PATHS: &'static [(&'static str, &'static str)] = &[
+        ("/foo/bar/baz", "/foo/bar/baz"),
+        ("foo/bar/baz", "foo/bar/baz"),
+        ("./foo/bar/baz", "foo/bar/baz"),
+        ("../foo/bar/baz", "../foo/bar/baz"),
+    ];
+
+    for &(input, expected) in PATHS.iter() {
+        assert_eq!(remove_leading_dot(input).to_str(), Some(expected));
+    }
+}
+
 
 /// Tests wether a directory entry is a not-hidden file.
 pub fn filter_file(entry: &DirEntry) -> bool {

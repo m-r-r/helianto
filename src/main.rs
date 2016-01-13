@@ -82,6 +82,17 @@ fn main() {
         return print_version();
     }
 
+    stdio_logger::init(
+        if matches.opt_present("quiet") {
+            LogLevel::Error
+        } else if matches.opt_present("debug") {
+            LogLevel::Trace
+        } else {
+            LogLevel::Info
+        }
+    ).expect("Could not initialize logging");
+
+
     if matches.free.len() > 2 || (matches.opt_present("init") && matches.free.len() > 1) {
         error!("Invalid number of arguments");
         return process::exit(1);
@@ -99,20 +110,10 @@ fn main() {
         None
     };
 
-
-    stdio_logger::init(
-        if matches.opt_present("quiet") {
-            LogLevel::Error
-        } else if matches.opt_present("debug") {
-            LogLevel::Trace
-        } else {
-            LogLevel::Info
-        }
-    ).expect("Could not initialize logging");
-
     let settings_file = matches.opt_str("settings").map(PathBuf::from);
+    let working_directory = source_dir.clone().unwrap_or_else(|| PathBuf::from("."));
 
-    let mut settings = match read_settings(source_dir.as_ref(), settings_file.as_ref()) {
+    let mut settings = match read_settings(&working_directory, settings_file.as_ref()) {
         Ok(s) => s,
         Err(e) => panic!("{}", e),
     };
@@ -141,21 +142,17 @@ fn main() {
     });
 }
 
-fn read_settings<P: AsRef<Path>>(cwd: Option<&P>,
-                                 settings_file: Option<&P>)
+fn read_settings<P: AsRef<Path>>(cwd: &P,
+                                 alternate_file: Option<&P>)
                                  -> helianto::Result<Settings> {
-    if let Some(ref path) = settings_file {
-        info!("Loading settings from {}.", path.as_ref().display());
-        return Settings::from_file(path);
-    }
-    let settings_file = cwd.map(|p| PathBuf::from(p.as_ref()))
-                           .unwrap_or(PathBuf::from("."))
-                           .join(SETTINGS_FILE);
+    let default_file = cwd.as_ref().join(SETTINGS_FILE);
+    let settings_file = alternate_file.map(|p| p.as_ref()).unwrap_or(&default_file);
+
     if is_file(&settings_file) {
         info!("Loading settings from {}.", settings_file.display());
         Settings::from_file(&settings_file)
     } else {
-        Ok(Settings::default())
+        Ok(Settings::with_working_directory(cwd.as_ref()))
     }
 }
 
