@@ -18,11 +18,16 @@
 use std::path::Path;
 use std::fs::File;
 use regex::Regex;
-use hoedown::{Buffer, Html, Markdown, Render, Wrapper};
+use std::io::Read;
+use std::ascii::AsciiExt;
+use pulldown_cmark::{Parser, Event, Tag};
+use pulldown_cmark::{OPTION_ENABLE_TABLES, OPTION_ENABLE_FOOTNOTES};
+use pulldown_cmark::html;
 use super::{Metadata, Reader};
 use super::super::{Error, Result, Settings};
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 pub struct MarkdownReader;
 
 static EXTENSIONS: &'static [&'static str] = &["markdown", "md", "mkd", "mdown"];
@@ -37,90 +42,221 @@ impl Reader for MarkdownReader {
     }
 
     fn load(&self, path: &Path) -> Result<(String, Metadata)> {
-        let fd = try! { File::open(path) };
-        let mut renderer = HtmlRender::new();
-        let input = Markdown::read_from(fd);
-        let body = String::from(try! { renderer.render(&input).to_str()
-            .map_err(|err| Error::Reader {
+        let mut input = String::new();
+        try! {
+            File::open(path)
+                .and_then(|mut fd| fd.read_to_string(&mut input))
+                .map_err(|err| Error::Reader {
                     path: path.into(),
                     cause: Box::new(err),
                 }
             )
-        });
+        };
 
-        Ok((body, renderer.into()))
+        Ok(process_markdown(&input))
     }
 }
 
-
-struct HtmlRender {
-    base: Html,
-    before_header: bool,
-    before_metadata: bool,
-    metadata: Metadata,
-    metadata_regex: Regex,
+#[derive(PartialEq, Eq, Debug)]
+enum State {
+    BeforeTitle,
+    InsideTitle,
+    BeforeMetadata,
+    InsideMetadata,
+    InsideBody,
 }
 
-impl HtmlRender {
-    fn new() -> HtmlRender {
-        use hoedown::renderer::html::Flags;
+struct MetadataExtractor<'a> {
+    inner: Parser<'a>,
+    regex: Regex,
+    state: State,
+    pub metadata: Metadata,
+    buffer: Vec<Event<'a>>,
+}
 
-        HtmlRender {
-            base: Html::new(Flags::empty(), 6),
-            before_header: true,
-            before_metadata: true,
+impl<'a> From<Parser<'a>> for MetadataExtractor<'a> {
+    fn from(parser: Parser) -> MetadataExtractor {
+        MetadataExtractor {
+            inner: parser,
+            regex: Regex::new(r"^[\w][\w\d_\x2D ]*\s*:").unwrap(),
+            state: State::BeforeTitle,
             metadata: Metadata::new(),
-            metadata_regex: Regex::new(r"(?m)\A[ \t\n]*((?:[ \t]*[^ \t\\:]+[ \t]*:[^\n]*[\n]*$)+)[ \t\n]*\z").unwrap(),
+            buffer: Vec::new(),
         }
     }
+}
 
-    fn read_metadata(&mut self, buffer: &Buffer) {
-        if let Ok(metadata_str) = buffer.to_str() {
-            for line in metadata_str.lines() {
-                let parts: Vec<&str> = line.splitn(2, ":").collect();
-                if let (Some(key), Some(value)) = (parts.get(0), parts.get(1)) {
-                    self.metadata.insert(String::from(key.trim()), String::from(value.trim()));
+impl<'a> Iterator for MetadataExtractor<'a> {
+    type Item = Event<'a>;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        use self::State::*;
+    
+        if self.state == State::InsideBody {
+            if self.buffer.len() > 0 {
+                return Some(self.buffer.remove(0));
+            } else {
+                return self.inner.next();
+            }
+        }
+        
+        let event = match self.inner.next() {
+            Some(ev) => ev,
+            None => return None,
+        };
+        
+        println!("{:?} {:?}", self.state, event);
+        match self.state {
+            BeforeTitle => {
+                match event {
+                    Event::Start(Tag::Header(_)) => {
+                        self.state = State::InsideTitle;
+                        self.next()
+                    },
+                    Event::Start(Tag::Paragraph) => {
+                        self.state = State::InsideMetadata;
+                        self.buffer.push(event);
+                        self.next()
+                    },
+                    _ => {
+                        self.state = State::InsideBody;
+                        Some(event)
+                    }
                 }
-            }
+            },
+            InsideTitle => {
+                match event {
+                    Event::Text(_) => {
+                        self.metadata.insert("title".into(), get_event_text(&event));
+                        self.next()
+                    },
+                    Event::End(Tag::Header(_)) => {
+                        self.state = State::BeforeMetadata;
+                        self.next()
+                    },
+                    _ => self.next(),
+                }
+            },
+            BeforeMetadata => {
+                match event {
+                    Event::Start(Tag::Paragraph) => {
+                        self.state = State::InsideMetadata;
+                        self.buffer.push(event);
+                        self.next()
+                    },
+                    _ => {
+                        self.state = State::InsideBody;
+                        Some(event)
+                    }
+                }
+            },
+            InsideMetadata => {
+                match event {
+                    Event::Text(_) => {
+                        if ! self.regex.is_match(&get_event_text(&event)) {
+                            self.state = State::InsideBody;
+                            println!("metadata end: {}", get_event_text(&event));
+                        }
+                        self.buffer.push(event);
+                        self.next()
+                    },
+                    Event::End(Tag::Paragraph) => {
+                        self.metadata.extend(
+                            self.buffer.drain(..).filter_map(|event| {
+                                if let Event::Text(text) = event {
+                                    let (key, value) = split_pair(&text);
+                                    Some((key.to_ascii_lowercase(), value))
+                                } else {
+                                    None
+                                }
+                            })
+                        );
+                        self.state = State::InsideBody;
+                        self.next()
+                    },
+                    Event::SoftBreak | Event::HardBreak => {
+                        self.buffer.push(event);
+                        self.next()
+                    },
+                    _ => {
+                        self.buffer.push(event);
+                        self.state = State::InsideBody;
+                        self.next()
+                    }
+                }
+            },
+            InsideBody => unreachable!(),
         }
     }
 }
 
-impl Wrapper for HtmlRender {
-    type Base = Html;
 
-    fn base(&mut self) -> &mut Html {
-        &mut self.base
-    }
+fn split_pair<S: AsRef<str>>(input: &S) -> (String, String) {
+    let mut split = input.as_ref().splitn(2, ':');
+    let key: &str = split.next().unwrap_or(""); 
+    let value: &str = split.next().unwrap_or(""); 
+    (key.trim().into(), value.trim().into())
+}
 
-    fn header(&mut self, ob: &mut Buffer, content: &Buffer, level: i32) {
-        if self.before_header {
-            if let Ok(title) = content.to_str().map(|s| s.trim()) {
-                self.metadata.insert("title".into(), title.into());
-                self.before_header = false;
-            }
-        } else {
-            self.base().header(ob, content, level);
-        }
-    }
-
-    fn paragraph(&mut self, ob: &mut Buffer, content: &Buffer) {
-        let is_metadata = content.to_str()
-                                 .ok()
-                                 .map(|s| self.metadata_regex.is_match(s))
-                                 .unwrap_or(false);
-        if !self.before_header && self.before_metadata && is_metadata {
-            self.read_metadata(content);
-        } else {
-            self.base().paragraph(ob, content);
-        }
+fn get_event_text<'a>(event: &Event<'a>) -> String {
+    if let Event::Text(ref text) = *event {
+        text.clone().into_owned()
+    } else {
+        panic!()
     }
 }
 
-impl Into<Metadata> for HtmlRender {
-    fn into(self) -> Metadata {
-        self.metadata
-    }
+
+fn process_markdown<S: AsRef<str>>(input: &S) -> (String, Metadata) {
+    let mut parser = MetadataExtractor::from(
+        Parser::new_ext(input.as_ref(), OPTION_ENABLE_TABLES | OPTION_ENABLE_FOOTNOTES)
+    );
+    let mut output = String::with_capacity(input.as_ref().len() * (3/2));
+    html::push_html(&mut output, &mut parser);
+    (output, parser.metadata.clone())
 }
 
-wrap!(HtmlRender);
+
+#[test]
+fn extract_title() {
+    let (output, metadata) = process_markdown(&"# Foo\nbar\nbaz");
+    assert_eq!(metadata.get("title"), Some(&"Foo".into()));
+    assert_eq!(output, "<p>bar\nbaz</p>\n");
+}
+
+#[test]
+fn extract_metadata() {
+    let (output, metadata) = process_markdown(&"# Foo\n\nBar: baz:quux\nFoo bar: qux baz\n\nfoo: bar");
+    assert_eq!(metadata.get("title"), Some(&"Foo".into()));
+    assert_eq!(metadata.get("bar"), Some(&"baz:quux".into()));
+    assert_eq!(metadata.get("foo bar"), Some(&"qux baz".into()));
+    assert_eq!(output, "<p>foo: bar</p>\n");
+}
+
+
+#[test]
+fn can_skip_to_metadata() {
+    let (output, metadata) = process_markdown(&"\n\n\nBar: baz:quux\nFoo bar: qux baz\n\nfoo: bar");
+    assert_eq!(metadata.get("title"), None);
+    assert_eq!(metadata.get("bar"), Some(&"baz:quux".into()));
+    assert_eq!(metadata.get("foo bar"), Some(&"qux baz".into()));
+    assert_eq!(output, "<p>foo: bar</p>\n");
+}
+
+#[test]
+fn can_skip_to_body() {
+    let (output, metadata) = process_markdown(&"\n\n\nBar: baz:quux\nFoo bar: qux baz  \nlol\n\nfoo: bar");
+    assert_eq!(metadata.get("title"), None);
+    assert_eq!(metadata.get("bar"), None);
+    assert_eq!(metadata.get("foo bar"), None);
+    assert_eq!(output, "<p>Bar: baz:quux\nFoo bar: qux baz<br />\nlol</p>\n<p>foo: bar</p>\n");
+}
+
+#[test]
+fn can_skip_metadata() {
+    let (output, metadata) = process_markdown(&"# Title\n\n\nBar: baz:quux\nFoo bar: qux baz  \nlol\n\nfoo: bar");
+    assert_eq!(metadata.get("title"), Some(&String::from("Title")));
+    assert_eq!(metadata.get("bar"), None);
+    assert_eq!(metadata.get("foo bar"), None);
+    assert_eq!(output, "<p>Bar: baz:quux\nFoo bar: qux baz<br />\nlol</p>\n<p>foo: bar</p>\n");
+}

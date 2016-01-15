@@ -1,16 +1,7 @@
 [package]
 authors = ["Mickaël RAYBAUD-ROIG <raybaudroigm@gmail.com>"]
 description = "A minimalist static website generator"
-include = [
-    "Cargo.toml",
-    "Cargo.lock",
-    "LICENSE.markdown",
-    "README.markdown",
-    "CHANGELOG.markdown",
-    "src/**/.rs",
-    "src/**/.hbs",
-    "example_data/**"
-]
+include = ["Cargo.toml", "Cargo.lock", "LICENSE.markdown", "README.markdown", "CHANGELOG.markdown", "src/**/.rs", "src/**/.hbs", "example_data/**"]
 keywords = ["staticsite", "website", "blog"]
 license = "AGPL-3.0"
 name = "helianto"
@@ -22,9 +13,9 @@ version = "0.1.0-beta1"
 chrono = "0.2.16"
 getopts = "0.2.14"
 handlebars = "0.12.1"
-hoedown = "3.0.3"
 log = "0.3.4"
 num = "0.1.29"
+pulldown-cmark = "0.0.5"
 regex = "0.1.44"
 rustc-serialize = "0.3.16"
 stdio_logger = "0.1.1"

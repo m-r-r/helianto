@@ -18,8 +18,7 @@
 extern crate rustc_serialize;
 extern crate walkdir;
 extern crate handlebars;
-#[macro_use(wrap)]
-extern crate hoedown;
+extern crate pulldown_cmark;
 extern crate regex;
 extern crate toml;
 extern crate chrono;
