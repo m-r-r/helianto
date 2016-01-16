@@ -106,7 +106,6 @@ impl<'a> Iterator for MetadataExtractor<'a> {
             None => return None,
         };
         
-        println!("{:?} {:?}", self.state, event);
         match self.state {
             BeforeTitle => {
                 match event {
@@ -156,7 +155,6 @@ impl<'a> Iterator for MetadataExtractor<'a> {
                     Event::Text(_) => {
                         if ! self.regex.is_match(&get_event_text(&event)) {
                             self.state = State::InsideBody;
-                            println!("metadata end: {}", get_event_text(&event));
                         }
                         self.buffer.push(event);
                         self.next()
