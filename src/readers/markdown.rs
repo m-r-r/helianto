@@ -20,6 +20,7 @@ use std::fs::File;
 use regex::Regex;
 use std::io::Read;
 use std::ascii::AsciiExt;
+use std::mem::replace;
 use pulldown_cmark::{Parser, Event, Tag};
 use pulldown_cmark::{OPTION_ENABLE_TABLES, OPTION_ENABLE_FOOTNOTES};
 use pulldown_cmark::html;
@@ -162,7 +163,7 @@ impl<'a> Iterator for MetadataExtractor<'a> {
                     },
                     Event::End(Tag::Paragraph) => {
                         self.metadata.extend(
-                            self.buffer.drain(..).filter_map(|event| {
+                            replace(&mut self.buffer, Vec::new()).into_iter().filter_map(|event| {
                                 if let Event::Text(text) = event {
                                     let (key, value) = split_pair(&text);
                                     Some((key.to_ascii_lowercase(), value))
