@@ -46,7 +46,6 @@ use rustc_serialize::json::ToJson;
 use walkdir::{WalkDir, WalkDirIterator};
 use handlebars::Handlebars;
 
-use utils::PathExt;
 pub use error::{Error, Result};
 use readers::Reader;
 pub use document::{Document, DocumentMetadata, DocumentContent};
@@ -210,7 +209,7 @@ impl Compiler {
     
     fn build_document(&mut self, reader: Rc<Reader>, path: &Path) -> Result<()> {
         let (body, metadata) = try! { reader.load(path) };
-        let dest = path.relative_from_(&self.settings.source_dir)
+        let dest = path.strip_prefix(&self.settings.source_dir)
                        .map(|relpath| relpath.with_extension("html"))
                        .unwrap();
 
@@ -233,7 +232,7 @@ impl Compiler {
     }
 
     fn copy_file(&mut self, path: &Path) -> Result<()> {
-        let dest = path.relative_from_(&self.settings.source_dir)
+        let dest = path.strip_prefix(&self.settings.source_dir)
                        .map(|relpath| self.settings.output_dir.join(relpath))
                        .unwrap();
         let dest_dir = dest.parent().unwrap();

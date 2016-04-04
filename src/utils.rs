@@ -15,7 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use std::{fs, io, result};
+use std::result;
 use std::path::{PathBuf, Path, Component};
 use walkdir::DirEntry;
 use chrono::{self, FixedOffset};
@@ -23,59 +23,6 @@ use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_serialize::json::{Json, ToJson};
 use std::ascii::AsciiExt;
 use std::ffi::OsStr;
-
-#[doc(hidden)]
-pub trait PathExt {
-    fn metadata(&self) -> io::Result<fs::Metadata>;
-    fn exists(&self) -> bool;
-    fn is_file(&self) -> bool;
-    fn is_dir(&self) -> bool;
-    fn relative_from_<'a, P: ?Sized + AsRef<Path>>(&'a self, base: &'a P) -> Option<&Path>;
-}
-
-#[doc(hidden)]
-impl PathExt for Path {
-    fn metadata(&self) -> io::Result<fs::Metadata> {
-        fs::metadata(self)
-    }
-    fn exists(&self) -> bool {
-        fs::metadata(self).is_ok()
-    }
-
-    fn is_file(&self) -> bool {
-        fs::metadata(self).map(|s| s.is_file()).unwrap_or(false)
-    }
-
-    fn is_dir(&self) -> bool {
-        fs::metadata(self).map(|s| s.is_dir()).unwrap_or(false)
-    }
-
-    fn relative_from_<'a, P: ?Sized + AsRef<Path>>(&'a self, base: &'a P) -> Option<&Path> {
-        iter_after(self.components(), base.as_ref().components()).map(|c| c.as_path())
-    }
-}
-
-#[doc(hidden)]
-fn iter_after<A, I, J>(mut iter: I, mut prefix: J) -> Option<I>
-    where I: Iterator<Item = A> + Clone,
-          J: Iterator<Item = A>,
-          A: PartialEq
-{
-    loop {
-        let mut iter_next = iter.clone();
-        match (iter_next.next(), prefix.next()) {
-            (Some(x), Some(y)) => {
-                if x != y {
-                    return None;
-                }
-            }
-            (Some(_), None) => return Some(iter),
-            (None, None) => return Some(iter),
-            (None, Some(_)) => return None,
-        }
-        iter = iter_next;
-    }
-}
 
 static INVALID_CHARS: &'static str = "._~#$";
 
@@ -102,9 +49,9 @@ pub fn filter_source_entry(source_dir: &Path, entry: &DirEntry) -> bool {
         return false
     }
 
-    let rel_path = match path.relative_from_(source_dir) {
-        Some(value) => value,
-        None => return false,
+    let rel_path = match path.strip_prefix(source_dir) {
+        Ok(value) => value,
+        Err(_) => return false,
     };
 
     if rel_path.components().all(|c| valid_file_name(c.as_os_str())) {
