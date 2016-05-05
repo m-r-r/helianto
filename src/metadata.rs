@@ -106,7 +106,7 @@ macro_rules! impl_opt_as_ref(
                 }
             }
         }
-    ) 
+    )
 );
 
 macro_rules! impl_into (

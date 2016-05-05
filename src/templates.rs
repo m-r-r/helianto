@@ -15,10 +15,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+use std::path::{Path};
 use rustc_serialize::json::{Json, Object, ToJson};
-use super::{Document, Site};
 use handlebars::{self, Handlebars, Helper, JsonRender, RenderContext, RenderError};
 use chrono::DateTime;
+use walkdir::{WalkDir, WalkDirIterator, DirEntry};
+use super::{Document, Site};
 
 pub struct Context<'a> {
     pub site: &'a Site,
@@ -117,3 +119,88 @@ pub fn register_helpers(handlebars: &mut Handlebars) {
     handlebars.register_helper("date", Box::new(date_helper));
     handlebars.register_helper("join", Box::new(join_helper));
 }
+
+
+
+
+pub struct Loader<'r> {
+    pub registry: &'r mut Handlebars,
+}
+
+impl<'r> Loader<'r> {
+    pub fn new(registry: &'r mut Handlebars) -> Self {
+        Loader {
+            registry: registry,
+        }
+    }
+
+    pub fn load_builtin_templates(&mut self) {
+        // Default templates :
+        self.registry
+            .register_template_string("head.html", include_str!("templates/head.html.hbs").into())
+            .unwrap();
+        self.registry
+            .register_template_string("page.html", include_str!("templates/page.html.hbs").into())
+            .unwrap();
+        self.registry
+            .register_template_string("foot.html", include_str!("templates/foot.html.hbs").into())
+            .unwrap();
+    }
+
+    pub fn load_templates(&mut self, templates_dir: &Path) {
+        let iter = WalkDir::new(templates_dir)
+            .into_iter()
+            .filter_entry(|e| filter_templates(e));
+
+        for result in iter {
+            let path = match result {
+                Ok(ref entry) => entry.path(),
+                Err(e) => {
+                    error!("{}", e);
+                    continue;
+                }
+            };
+
+            let template_name = match template_name(templates_dir, path) {
+                Some(path) => path,
+                None => {
+                    error!("Could not load template {}: invalid path", path.display());
+                    continue;
+                }
+            };
+
+            match self.registry.register_template_file(template_name.as_ref(), path) {
+                Ok(()) => (),
+                Err(e) => {
+                    error!("Could not load template {}: {}", path.display(), e);
+                    continue;
+                }
+            }
+        }
+    }
+}
+
+fn template_name(templates_dir: &Path, template_path: &Path) -> Option<String> {
+    template_path.with_extension("")
+        .strip_prefix(templates_dir)
+        .or_else(|e| {
+            debug!("Path::strip_prefix() -> {}", e);
+            Err(e)
+        })
+        .ok()
+        .and_then(|p| p.to_str())
+        .map(|s| s.into())
+}
+
+/// Tests wether a directory entry is an Handlebar template.
+fn filter_templates(entry: &DirEntry) -> bool {
+    let file_type = entry.file_type();
+    if file_type.is_dir() {
+        true
+    } else if file_type.is_file() {
+        entry.path().extension() == Some("hbs".as_ref())
+    } else {
+        false
+    }
+}
+

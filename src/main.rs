@@ -127,7 +127,7 @@ fn main() {
         settings.output_dir = path.clone();
     }
 
-    
+
     if matches.opt_present("init") {
         if matches.opt_present("settings") {
             error!("Option \"--settings\" can't be used with \"--init\".");
@@ -187,7 +187,7 @@ fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()>
     } else {
         let current_file = files[0];
         let dest_file = dest.join(current_file.0);
-        
+
         if is_file(&dest_file) {
             info!("Skipping {} : the file already exists", dest_file.display());
         } else {

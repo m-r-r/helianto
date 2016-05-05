@@ -89,10 +89,10 @@ impl<'a> From<Parser<'a>> for MetadataExtractor<'a> {
 
 impl<'a> Iterator for MetadataExtractor<'a> {
     type Item = Event<'a>;
-    
+
     fn next(&mut self) -> Option<Self::Item> {
         use self::State::*;
-    
+
         if self.state == State::InsideBody {
             if self.buffer.len() > 0 {
                 return Some(self.buffer.remove(0));
@@ -100,12 +100,12 @@ impl<'a> Iterator for MetadataExtractor<'a> {
                 return self.inner.next();
             }
         }
-        
+
         let event = match self.inner.next() {
             Some(ev) => ev,
             None => return None,
         };
-        
+
         match self.state {
             BeforeTitle => {
                 match event {
@@ -192,8 +192,8 @@ impl<'a> Iterator for MetadataExtractor<'a> {
 
 fn split_pair<S: AsRef<str>>(input: &S) -> (String, String) {
     let mut split = input.as_ref().splitn(2, ':');
-    let key: &str = split.next().unwrap_or(""); 
-    let value: &str = split.next().unwrap_or(""); 
+    let key: &str = split.next().unwrap_or("");
+    let value: &str = split.next().unwrap_or("");
     (key.trim().into(), value.trim().into())
 }
 

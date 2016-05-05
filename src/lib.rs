@@ -39,11 +39,11 @@ mod generators;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Write};
 use std::rc::Rc;
 use std::collections::HashMap;
 use rustc_serialize::json::ToJson;
-use walkdir::{WalkDir, WalkDirIterator};
+use walkdir::{WalkDir, WalkDirIterator, DirEntry};
 use handlebars::Handlebars;
 
 pub use error::{Error, Result};
@@ -117,66 +117,19 @@ impl Compiler {
         self.generators.push(Rc::new(T::new()));
     }
 
+
+
     fn load_templates(&mut self) -> Result<()> {
         self.handlebars.clear_templates();
         templates::register_helpers(&mut self.handlebars);
 
-        // Default templates :
-        self.handlebars
-            .register_template_string("head.html", include_str!("templates/head.html.hbs").into())
-            .unwrap();
-        self.handlebars
-            .register_template_string("page.html", include_str!("templates/page.html.hbs").into())
-            .unwrap();
-        self.handlebars
-            .register_template_string("foot.html", include_str!("templates/foot.html.hbs").into())
-            .unwrap();
+        let ref mut loader = templates::Loader::new(&mut self.handlebars);
+        loader.load_builtin_templates();
 
-        let template_dir = self.settings.source_dir.join("_layouts");
+        let templates_dir = self.settings.source_dir.join("_layouts");
 
-        if !template_dir.is_dir() {
-            return Ok(());
-        }
-
-
-        let entries = WalkDir::new(template_dir)
-                          .max_depth(7)
-                          .into_iter()
-                          .filter_entry(|entry| {
-                              entry.file_type().is_dir() || utils::filter_template(entry)
-                          })
-                          .filter_map(|entry| match entry {
-                              Ok(ref path) if path.file_type().is_file() => Some(path.clone()),
-                              _ => None
-                          })
-                          .map(|entry| PathBuf::from(entry.path()));
-
-
-        for entry in entries {
-            let template_name: String = match entry.with_extension("")
-                                                   .clone()
-                                                   .file_name()
-                                                   .and_then(|n| n.to_str()) {
-                Some(s) => s.into(),
-                None => {
-                    error!("Unable to load template file: {}: invalid file name",
-                             entry.display());
-                    continue;
-                }
-            };
-
-            let mut source = String::new();
-            if let Err(e) = File::open(&entry).and_then(|mut fd| fd.read_to_string(&mut source)) {
-                error!("Unable to read template file {}: {}", entry.display(), e);
-                continue;
-            }
-
-            match self.handlebars.register_template_string(template_name.as_ref(), source) {
-                Ok(_) => (),
-                Err(e) => {
-                    error!("Could not load tempalte file: {}: {}", entry.display(), e);
-                }
-            }
+        if templates_dir.is_dir() {
+            loader.load_templates(&templates_dir);
         }
 
         Ok(())
@@ -206,7 +159,7 @@ impl Compiler {
                 }
             })
     }
-    
+
     fn build_document(&mut self, reader: Rc<Reader>, path: &Path) -> Result<()> {
         let (body, metadata) = try! { reader.load(path) };
         let dest = path.strip_prefix(&self.settings.source_dir)
@@ -283,10 +236,9 @@ impl Compiler {
                           .follow_links(self.settings.follow_links)
                           .into_iter();
 
-        let source_dir = self.settings.source_dir.clone();
         let entry_filter = |ref e: &walkdir::DirEntry| {
-            let follow = utils::filter_source_entry(&source_dir, e);
-            trace!("filter_source_entry({:?}) -> {:?}", e, follow);
+            let follow = filter_entry(e);
+            trace!("filter_entry({:?}) -> {:?}", e, follow);
             follow
         };
 
@@ -319,3 +271,14 @@ impl Compiler {
         Ok(())
     }
 }
+
+pub fn filter_entry(entry: &DirEntry) -> bool {
+    let file_type = entry.file_type();
+
+    if file_type.is_dir() || file_type.is_file() {
+        utils::is_public(&entry.path())
+    }  else {
+        false
+    }
+}
+

@@ -17,51 +17,24 @@
 
 use std::result;
 use std::path::{PathBuf, Path, Component};
-use walkdir::DirEntry;
 use chrono::{self, FixedOffset};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use rustc_serialize::json::{Json, ToJson};
 use std::ascii::AsciiExt;
-use std::ffi::OsStr;
 
-static INVALID_CHARS: &'static str = "._~#$";
-
-static TEMPLATE_EXTENSION: &'static str = ".hbs";
-
-
-/// Check if a filename is valid
-///
-/// A valid filename must not start with `.`, `_`, `~`, `#` or `$` and must be at least one
-/// character long.
-fn valid_file_name<S: AsRef<OsStr> + ?Sized>(file_name: &S) -> bool {
-    file_name.as_ref()
-             .to_str()
-             .and_then(|s| s.chars().next())
-             .map(|first_char| !INVALID_CHARS.contains(first_char))
-             .unwrap_or(false)
+fn is_hidden<S: AsRef<Path> + Sized>(path: &S) -> bool {
+    path.as_ref().file_name()
+        .and_then(|osstr| osstr.to_str())
+        .map(|file_name| file_name.starts_with('.'))
+        .unwrap_or(false)
 }
 
-
-pub fn filter_source_entry(source_dir: &Path, entry: &DirEntry) -> bool {
-    let path = entry.path();
-
-    if ! path.starts_with(source_dir) {
-        return false
-    }
-
-    let rel_path = match path.strip_prefix(source_dir) {
-        Ok(value) => value,
-        Err(_) => return false,
-    };
-
-    if rel_path.components().all(|c| valid_file_name(c.as_os_str())) {
-        let file_type = entry.file_type();
-        file_type.is_dir() || file_type.is_file()
-    } else {
-        false
-    }
+pub fn is_public<S: AsRef<Path> + Sized>(path: &S) -> bool {
+    !is_hidden(path) && path.as_ref().file_name()
+        .and_then(|osstr| osstr.to_str())
+        .map(|file_name| !file_name.starts_with('_'))
+        .unwrap_or(false)
 }
-
 
 /// Remove the prefixes from a path
 pub fn remove_path_prefix<S: AsRef<Path>>(path: S) -> PathBuf {
@@ -103,25 +76,6 @@ fn test_remove_leading_dot() {
     for &(input, expected) in PATHS.iter() {
         assert_eq!(remove_leading_dot(input).to_str(), Some(expected));
     }
-}
-
-
-/// Tests wether a directory entry is a not-hidden file.
-pub fn filter_file(entry: &DirEntry) -> bool {
-    entry.file_name()
-         .to_str()
-         .and_then(|s| s.chars().next())
-         .map(|c| !INVALID_CHARS.contains(c))
-         .unwrap_or(false) && entry.file_type().is_file()
-}
-
-/// Tests wether a directory entry is an Handlebar template.
-pub fn filter_template(entry: &DirEntry) -> bool {
-    filter_file(entry) &&
-    entry.file_name()
-         .to_str()
-         .map(|s| s.ends_with(TEMPLATE_EXTENSION))
-         .unwrap_or(false)
 }
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
