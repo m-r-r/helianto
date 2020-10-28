@@ -22,6 +22,7 @@ extern crate regex;
 extern crate serde;
 extern crate toml;
 extern crate walkdir;
+extern crate serde;
 #[macro_use]
 extern crate log;
 
@@ -233,7 +234,7 @@ impl Compiler {
 
         let entries = WalkDir::new(&self.settings.source_dir)
             .min_depth(1)
-            .max_depth(self.settings.max_depth)
+                          .max_depth(self.settings.max_depth)
             .follow_links(self.settings.follow_links)
             .into_iter();
 

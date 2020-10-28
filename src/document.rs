@@ -21,6 +21,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
+use std::ascii::AsciiExt;
+use serde::{Serialize, Deserialize};
+use super::Result;
+use utils::{DateTime, FromRaw};
+use metadata::{Date, Field, Keywords};
 
 const CREATED_FIELD: &dyn Field = &Date("created") as &dyn Field;
 const MODIFIED_FIELD: &dyn Field = &Date("modified") as &dyn Field;
@@ -113,17 +118,16 @@ pub enum DocumentContent {
 
 impl From<String> for DocumentContent {
     fn from(text: String) -> DocumentContent {
-        DocumentContent::Text { content: text }
+        DocumentContent::Text {
+            content: text
+        }
     }
 }
 
 impl FromIterator<Rc<DocumentMetadata>> for DocumentContent {
-    fn from_iter<T>(documents: T) -> Self
-    where
-        T: IntoIterator<Item = Rc<DocumentMetadata>>,
-    {
+    fn from_iter<T>(documents: T) -> Self where T: IntoIterator<Item=Rc<DocumentMetadata>> {
         DocumentContent::Index {
-            documents: documents.into_iter().collect(),
+            documents: documents.into_iter().collect()
         }
     }
 }

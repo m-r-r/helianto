@@ -65,10 +65,10 @@ impl Settings {
         let mut content = String::new();
         fd.read_to_string(&mut content)?;
 
-        let toml: Value =
-            toml::de::from_str(content.as_str()).map_err(|err| Error::LoadSettings {
+        let toml: Value = toml::de::from_str(content.as_str())
+            .map_err(|err| Error::LoadSettings {
                 path: path.as_ref().into(),
-                cause: Box::new(err),
+                cause: Box::new(err)
             })?;
 
         let parent_dir = path

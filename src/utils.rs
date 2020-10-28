@@ -109,9 +109,9 @@ impl DateTime {
     }
 }
 
-pub trait FromRaw
-where
-    Self: 'static + Sized,
+
+
+pub trait FromRaw where Self: 'static + Sized ,
 {
     fn from_raw(raw: &str) -> Option<Self>;
 }
