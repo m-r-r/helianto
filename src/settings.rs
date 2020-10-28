@@ -18,7 +18,7 @@
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::Read;
-use toml::{Parser, Value};
+use toml::{self, Value};
 use super::{Error, Result};
 use super::utils::remove_leading_dot;
 use num::NumCast;
@@ -69,12 +69,11 @@ impl Settings {
             fd.read_to_string(&mut content)
         };
 
-        let mut parser = Parser::new(content.as_ref());
-        let toml = try! {
-            parser.parse()
-                  .map(|table| Value::Table(table))
-                  .ok_or((path, parser))
-        };
+        let toml: Value = toml::de::from_str(content.as_str())
+            .map_err(|err| Error::LoadSettings {
+                path: path.as_ref().into(),
+                cause: Box::new(err)
+            })?;
 
         let parent_dir = path.as_ref().parent()
             .map(PathBuf::from)
@@ -155,7 +154,7 @@ impl FromToml for bool {
 
 
 fn read_value<T: FromToml>(toml: &Value, key: &str) -> Result<Option<T>> {
-    if let Some(value) = toml.lookup(key) {
+    if let Some(value) = toml.get(key) {
         if value.type_str() == T::type_str() {
             Ok(Some(FromToml::from_toml(value)))
         } else {

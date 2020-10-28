@@ -61,7 +61,7 @@ impl super::Generator for IndexGenerator {
                       };
 
                       docs.sort_by(|b, a| a.created.cmp(&b.created));
-                      let content = DocumentContent::Index(docs);
+                      let content = DocumentContent::Index { documents: docs };
 
                       Rc::new(Document::new(meta, content))
                   })

@@ -19,7 +19,7 @@ use std::{error, fmt, result};
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
 use std::borrow::Borrow;
-use toml::{DecodeError, Parser};
+use toml;
 
 
 pub type Result<T> = result::Result<T, Error>;
@@ -135,24 +135,6 @@ impl error::Error for Error {
             Error::Render { ref cause, .. } => Some(cause.borrow()),
             Error::LoadSettings { ref cause, .. } => Some(cause.borrow()),
             _ => None,
-        }
-    }
-}
-
-impl<'a, T> From<(&'a T, Parser<'a>)> for Error where T: AsRef<Path> {
-    fn from(error: (&'a T, Parser<'a>)) -> Error {
-        Error::LoadSettings {
-            path: PathBuf::from(error.0.as_ref()),
-            cause: Box::new(error.1.errors[0].clone()),
-        }
-    }
-}
-
-impl<'a, T> From<(&'a T, DecodeError)> for Error where T: AsRef<Path> {
-    fn from(error: (&'a T, DecodeError)) -> Error {
-        Error::LoadSettings {
-            path: PathBuf::from(error.0.as_ref()),
-            cause: Box::new(error.1),
         }
     }
 }

@@ -21,9 +21,7 @@ use regex::Regex;
 use std::io::Read;
 use std::ascii::AsciiExt;
 use std::mem::replace;
-use pulldown_cmark::{Parser, Event, Tag};
-use pulldown_cmark::{OPTION_ENABLE_TABLES, OPTION_ENABLE_FOOTNOTES};
-use pulldown_cmark::html;
+use pulldown_cmark::{html, Parser, Event, Tag, Options};
 use super::{Metadata, Reader};
 use super::super::{Error, Result, Settings};
 
@@ -109,7 +107,7 @@ impl<'a> Iterator for MetadataExtractor<'a> {
         match self.state {
             BeforeTitle => {
                 match event {
-                    Event::Start(Tag::Header(_)) => {
+                    Event::Start(Tag::Heading(_)) => {
                         self.state = State::InsideTitle;
                         self.next()
                     },
@@ -130,7 +128,7 @@ impl<'a> Iterator for MetadataExtractor<'a> {
                         self.metadata.insert("title".into(), get_event_text(&event));
                         self.next()
                     },
-                    Event::End(Tag::Header(_)) => {
+                    Event::End(Tag::Heading(_)) => {
                         self.state = State::BeforeMetadata;
                         self.next()
                     },
@@ -199,7 +197,7 @@ fn split_pair<S: AsRef<str>>(input: &S) -> (String, String) {
 
 fn get_event_text<'a>(event: &Event<'a>) -> String {
     if let Event::Text(ref text) = *event {
-        text.clone().into_owned()
+        text.clone().to_string()
     } else {
         panic!()
     }
@@ -208,7 +206,7 @@ fn get_event_text<'a>(event: &Event<'a>) -> String {
 
 fn process_markdown<S: AsRef<str>>(input: &S) -> (String, Metadata) {
     let mut parser = MetadataExtractor::from(
-        Parser::new_ext(input.as_ref(), OPTION_ENABLE_TABLES | OPTION_ENABLE_FOOTNOTES)
+        Parser::new_ext(input.as_ref(), Options::ENABLE_TABLES | Options::ENABLE_FOOTNOTES)
     );
     let mut output = String::with_capacity(input.as_ref().len() * (3/2));
     html::push_html(&mut output, &mut parser);

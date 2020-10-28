@@ -17,7 +17,6 @@
 
 use std::iter::{FromIterator, Iterator};
 use std::collections::BTreeMap;
-use rustc_serialize::json::{Json, ToJson};
 use super::{Error, Result};
 use super::utils::DateTime;
 
@@ -34,6 +33,7 @@ pub enum Value {
     Map(BTreeMap<String, Value>),
 }
 
+/*
 impl ToJson for Value {
     fn to_json(&self) -> Json {
         use self::Value::*;
@@ -51,6 +51,7 @@ impl ToJson for Value {
         }
     }
 }
+*/
 
 impl<'l> From<&'l str> for Value {
     fn from(string: &str) -> Value {

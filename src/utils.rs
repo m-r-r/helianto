@@ -15,12 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use std::result;
 use std::path::{PathBuf, Path, Component};
 use chrono::{self, FixedOffset};
-use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use rustc_serialize::json::{Json, ToJson};
 use std::ascii::AsciiExt;
+use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
 fn is_hidden<S: AsRef<Path> + Sized>(path: &S) -> bool {
     path.as_ref().file_name()
@@ -78,33 +76,32 @@ fn test_remove_leading_dot() {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct DateTime(chrono::DateTime<FixedOffset>);
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
+#[serde(transparent)] 
+pub struct DateTime(
+    #[serde(serialize_with = "serialize_date", deserialize_with = "deserialize_date")]
+    chrono::DateTime<FixedOffset>
+);
+
+
+fn deserialize_date<'de, D>(deserializer: D) -> Result<chrono::DateTime<FixedOffset>, D::Error>
+    where D: Deserializer<'de> 
+{
+    let s = String::deserialize(deserializer)?;
+    chrono::DateTime::parse_from_rfc3339(s.as_str())
+        .map_err(serde::de::Error::custom)
+
+}
+
+fn serialize_date<S>(date: &chrono::DateTime<FixedOffset>, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer
+{
+    serializer.serialize_str(date.to_rfc3339().as_str())
+}
 
 impl DateTime {
     pub fn from_string(s: &str) -> Option<DateTime> {
         chrono::DateTime::parse_from_rfc3339(s).ok().map(DateTime)
-    }
-}
-
-impl Decodable for DateTime {
-    fn decode<D: Decoder>(decoder: &mut D) -> result::Result<Self, D::Error> {
-        let datetime_str: String = try! { String::decode(decoder) };
-        chrono::DateTime::parse_from_rfc3339(datetime_str.as_ref())
-            .map_err(|_| decoder.error("Malformed date"))
-            .map(|d| DateTime(d))
-    }
-}
-
-impl Encodable for DateTime {
-    fn encode<S: Encoder>(&self, encoder: &mut S) -> Result<(), S::Error> {
-        self.0.to_rfc3339().encode(encoder)
-    }
-}
-
-impl ToJson for DateTime {
-    fn to_json(&self) -> Json {
-        Json::String(self.0.to_rfc3339())
     }
 }
 

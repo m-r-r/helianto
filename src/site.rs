@@ -16,25 +16,16 @@
 
 
 use std::default::Default;
-use rustc_serialize::json::{Json, Object, ToJson};
 use super::Settings;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, RustcEncodable, RustcDecodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Site {
     pub title: String,
     pub language: Option<String>,
     pub url: String,
 }
 
-impl ToJson for Site {
-    fn to_json(&self) -> Json {
-        let mut obj = Object::new();
-        obj.insert("title".into(), self.title.to_json());
-        obj.insert("language".into(), self.language.to_json());
-        obj.insert("url".into(), self.url.to_json());
-        Json::Object(obj)
-    }
-}
 
 impl Default for Site {
     fn default() -> Site {

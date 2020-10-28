@@ -15,7 +15,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-extern crate rustc_serialize;
 extern crate walkdir;
 extern crate handlebars;
 extern crate pulldown_cmark;
@@ -23,6 +22,7 @@ extern crate regex;
 extern crate toml;
 extern crate chrono;
 extern crate num;
+extern crate serde;
 #[macro_use]
 extern crate log;
 
@@ -39,11 +39,10 @@ mod generators;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::fs::File;
-use std::io::{Write};
+use std::io::Write;
 use std::rc::Rc;
 use std::collections::HashMap;
-use rustc_serialize::json::ToJson;
-use walkdir::{WalkDir, WalkDirIterator, DirEntry};
+use walkdir::{WalkDir, DirEntry};
 use handlebars::Handlebars;
 
 pub use error::{Error, Result};
@@ -58,9 +57,9 @@ pub use generators::Generator;
 pub struct Compiler {
     pub settings: Settings,
     pub site: Site,
-    handlebars: Handlebars,
-    readers: HashMap<String, Rc<Reader>>,
-    generators: Vec<Rc<Generator>>,
+    handlebars: Handlebars<'static>,
+    readers: HashMap<String, Rc<dyn Reader>>,
+    generators: Vec<Rc<dyn Generator>>,
     documents: HashMap<String, Rc<DocumentMetadata>>,
 }
 
@@ -98,7 +97,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn get_reader(&self, path: &Path) -> Option<Rc<Reader>> {
+    pub fn get_reader(&self, path: &Path) -> Option<Rc<dyn Reader>> {
         path.extension()
             .and_then(|extension| extension.to_str())
             .and_then(|extension_str| self.readers.get(extension_str))
@@ -136,8 +135,11 @@ impl Compiler {
     }
 
     fn render_context(&self, context: Context, path: &Path) -> Result<()> {
-        let payload = context.to_json();
-        let output: String = try! { self.handlebars.render("page.html", &payload)
+        match ::toml::ser::to_string_pretty(&context) {
+            Ok(s) => println!("context : {:}", s.to_string()),
+            Err(e) => error!("error: {:?}", e),
+        }
+        let output: String = try! { self.handlebars.render("page.html", &context)
                 .map_err(|err| Error::Render {
                     cause: Box::new(err)
                 })
@@ -232,6 +234,7 @@ impl Compiler {
         try!{self.load_templates()};
 
         let entries = WalkDir::new(&self.settings.source_dir)
+                          .min_depth(1)
                           .max_depth(self.settings.max_depth)
                           .follow_links(self.settings.follow_links)
                           .into_iter();

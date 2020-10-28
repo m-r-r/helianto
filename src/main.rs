@@ -17,7 +17,6 @@
 
 extern crate getopts;
 extern crate helianto;
-extern crate stdio_logger;
 #[macro_use]
 extern crate log;
 
@@ -26,7 +25,7 @@ use std::path::PathBuf;
 use getopts::Options;
 use std::path::Path;
 use std::io::Write;
-use log::{LogLevel};
+use log::{info, LevelFilter};
 
 use helianto::{Error, Result, Compiler, Settings};
 
@@ -82,15 +81,17 @@ fn main() {
         return print_version();
     }
 
-    stdio_logger::init(
-        if matches.opt_present("quiet") {
-            LogLevel::Error
-        } else if matches.opt_present("debug") {
-            LogLevel::Trace
-        } else {
-            LogLevel::Info
-        }
-    ).expect("Could not initialize logging");
+    pretty_env_logger::formatted_builder()
+        .filter(Some("helianto"), 
+            if matches.opt_present("quiet") {
+                LevelFilter::Error
+            } else if matches.opt_present("debug") {
+                LevelFilter::Trace
+            } else { 
+                LevelFilter::Info
+            }
+        )
+        .init();
 
 
     if matches.free.len() > 2 || (matches.opt_present("init") && matches.free.len() > 1) {
