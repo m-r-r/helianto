@@ -14,15 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::path::{Path, PathBuf};
+use super::utils::remove_leading_dot;
+use super::{Error, Result};
+use num::NumCast;
 use std::fs::File;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 use toml::{self, Value};
-use super::{Error, Result};
-use super::utils::remove_leading_dot;
-use num::NumCast;
-
 
 #[derive(Clone, Debug)]
 pub struct Settings {
@@ -57,7 +55,7 @@ impl Settings {
             source_dir: cwd.join(".").into(),
             output_dir: cwd.join("_output").into(),
             layouts_dir: cwd.join("_layouts").into(),
-            .. Settings::default()
+            ..Settings::default()
         }
     }
 
@@ -69,51 +67,63 @@ impl Settings {
             fd.read_to_string(&mut content)
         };
 
-        let toml: Value = toml::de::from_str(content.as_str())
-            .map_err(|err| Error::LoadSettings {
+        let toml: Value =
+            toml::de::from_str(content.as_str()).map_err(|err| Error::LoadSettings {
                 path: path.as_ref().into(),
-                cause: Box::new(err)
+                cause: Box::new(err),
             })?;
 
-        let parent_dir = path.as_ref().parent()
+        let parent_dir = path
+            .as_ref()
+            .parent()
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
 
         Settings::from_toml(&toml, &parent_dir)
     }
 
-
     fn from_toml(toml: &Value, cwd: &Path) -> Result<Self> {
         let mut settings = Settings::with_working_directory(cwd);
 
         macro_rules! get_value {
-            ($key: expr) => (
+            ($key: expr) => {
                 try!(read_value(toml, $key))
-            )
+            };
         }
 
         macro_rules! set_field {
-            ($field: expr, $value: expr) => (
+            ($field: expr, $value: expr) => {
                 if let Some(tmp) = $value {
                     $field = tmp;
                 }
-            )
+            };
         }
 
         set_field!(settings.site_title, get_value!("site.title"));
         set_field!(settings.site_url, get_value!("site.url"));
-        set_field!(settings.site_language, get_value!("site.language").map(Some));
+        set_field!(
+            settings.site_language,
+            get_value!("site.language").map(Some)
+        );
 
-        set_field!(settings.output_dir, try!(read_directory(toml, "compiler.output_dir", cwd)));
-        set_field!(settings.source_dir, try!(read_directory(toml, "compiler.source_dir", cwd)));
-        set_field!(settings.layouts_dir, try!(read_directory(toml, "compiler.layouts_dir", cwd)));
+        set_field!(
+            settings.output_dir,
+            try!(read_directory(toml, "compiler.output_dir", cwd))
+        );
+        set_field!(
+            settings.source_dir,
+            try!(read_directory(toml, "compiler.source_dir", cwd))
+        );
+        set_field!(
+            settings.layouts_dir,
+            try!(read_directory(toml, "compiler.layouts_dir", cwd))
+        );
         set_field!(settings.max_depth, get_value!("compiler.max_depth"));
         set_field!(settings.follow_links, get_value!("compiler.follow_links"));
 
         Ok(settings)
     }
 }
-
 
 trait FromToml: 'static + Sized {
     fn type_str() -> &'static str;
@@ -151,19 +161,19 @@ impl FromToml for bool {
     }
 }
 
-
-
 fn read_value<T: FromToml>(toml: &Value, key: &str) -> Result<Option<T>> {
     if let Some(value) = toml.get(key) {
         if value.type_str() == T::type_str() {
             Ok(Some(FromToml::from_toml(value)))
         } else {
             Err(Error::Settings {
-                message: format!("found a value of type `{}` instead of a value of type `{}` \
+                message: format!(
+                    "found a value of type `{}` instead of a value of type `{}` \
                                   for the key `{}`",
-                                  value.type_str(),
-                                  T::type_str(),
-                                  key)
+                    value.type_str(),
+                    T::type_str(),
+                    key
+                ),
             })
         }
     } else {
@@ -177,13 +187,9 @@ fn read_directory(toml: &Value, key: &str, cwd: &Path) -> Result<Option<PathBuf>
         Some(v) => PathBuf::from(v),
     };
 
-    Ok(Some(
-        cwd.join(
-            if path.starts_with(".") {
-                remove_leading_dot(&path)
-            } else {
-                path
-            }
-        )
-    ))
+    Ok(Some(cwd.join(if path.starts_with(".") {
+        remove_leading_dot(&path)
+    } else {
+        path
+    })))
 }

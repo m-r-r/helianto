@@ -14,24 +14,27 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::path::{PathBuf, Path, Component};
 use chrono::{self, FixedOffset};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ascii::AsciiExt;
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use std::path::{Component, Path, PathBuf};
 
 fn is_hidden<S: AsRef<Path> + Sized>(path: &S) -> bool {
-    path.as_ref().file_name()
+    path.as_ref()
+        .file_name()
         .and_then(|osstr| osstr.to_str())
         .map(|file_name| file_name.starts_with('.'))
         .unwrap_or(false)
 }
 
 pub fn is_public<S: AsRef<Path> + Sized>(path: &S) -> bool {
-    !is_hidden(path) && path.as_ref().file_name()
-        .and_then(|osstr| osstr.to_str())
-        .map(|file_name| !file_name.starts_with('_'))
-        .unwrap_or(false)
+    !is_hidden(path)
+        && path
+            .as_ref()
+            .file_name()
+            .and_then(|osstr| osstr.to_str())
+            .map(|file_name| !file_name.starts_with('_'))
+            .unwrap_or(false)
 }
 
 /// Remove the prefixes from a path
@@ -48,12 +51,12 @@ pub fn remove_path_prefix<S: AsRef<Path>>(path: S) -> PathBuf {
         .collect()
 }
 
-
 /// Remove the dot at the begining of a path
 pub fn remove_leading_dot<S: AsRef<Path>>(path: S) -> PathBuf {
     let path_ref = path.as_ref();
     if path_ref.starts_with(".") {
-        path_ref.components()
+        path_ref
+            .components()
             .skip(1)
             .map(Component::as_os_str)
             .collect()
@@ -77,24 +80,26 @@ fn test_remove_leading_dot() {
 }
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
-#[serde(transparent)] 
+#[serde(transparent)]
 pub struct DateTime(
-    #[serde(serialize_with = "serialize_date", deserialize_with = "deserialize_date")]
-    chrono::DateTime<FixedOffset>
+    #[serde(
+        serialize_with = "serialize_date",
+        deserialize_with = "deserialize_date"
+    )]
+    chrono::DateTime<FixedOffset>,
 );
 
-
 fn deserialize_date<'de, D>(deserializer: D) -> Result<chrono::DateTime<FixedOffset>, D::Error>
-    where D: Deserializer<'de> 
+where
+    D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    chrono::DateTime::parse_from_rfc3339(s.as_str())
-        .map_err(serde::de::Error::custom)
-
+    chrono::DateTime::parse_from_rfc3339(s.as_str()).map_err(serde::de::Error::custom)
 }
 
 fn serialize_date<S>(date: &chrono::DateTime<FixedOffset>, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer
+where
+    S: Serializer,
 {
     serializer.serialize_str(date.to_rfc3339().as_str())
 }
@@ -105,9 +110,10 @@ impl DateTime {
     }
 }
 
-
-
-pub trait FromRaw where Self: 'static + Sized {
+pub trait FromRaw
+where
+    Self: 'static + Sized,
+{
     fn from_raw(raw: &str) -> Option<Self>;
 }
 
@@ -127,7 +133,6 @@ impl FromRaw for DateTime {
     }
 }
 
-
 impl FromRaw for String {
     fn from_raw(raw: &str) -> Option<String> {
         Some(String::from(raw.trim()))
@@ -140,7 +145,10 @@ impl FromRaw for Vec<String> {
     }
 }
 
-impl<T> FromRaw for Option<T> where T: FromRaw {
+impl<T> FromRaw for Option<T>
+where
+    T: FromRaw,
+{
     fn from_raw(raw: &str) -> Option<Option<T>> {
         T::from_raw(raw).map(Some)
     }

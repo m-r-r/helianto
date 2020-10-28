@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::default::Default;
 use super::Settings;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::default::Default;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Site {
@@ -25,7 +24,6 @@ pub struct Site {
     pub language: Option<String>,
     pub url: String,
 }
-
 
 impl Default for Site {
     fn default() -> Site {

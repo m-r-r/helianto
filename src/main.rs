@@ -14,34 +14,56 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 extern crate getopts;
 extern crate helianto;
 #[macro_use]
 extern crate log;
 
-use std::{env, fs, process, io};
-use std::path::PathBuf;
 use getopts::Options;
-use std::path::Path;
-use std::io::Write;
 use log::{info, LevelFilter};
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use std::{env, fs, io, process};
 
-use helianto::{Error, Result, Compiler, Settings};
+use helianto::{Compiler, Error, Result, Settings};
 
 const SETTINGS_FILE: &'static str = "helianto.toml";
 
 const DEFAULT_FILES: &'static [(&'static str, &'static [u8])] = &[
-    ("css/normalize.css",      include_bytes!["../example_data/css/normalize.css"] as &'static [u8]),
-    ("css/skeleton.css",       include_bytes!["../example_data/css/skeleton.css"]),
-    ("css/custom.css",         include_bytes!["../example_data/css/custom.css"]),
-    ("_layouts/head.html.hbs", include_bytes!["templates/head.html.hbs"]),
-    ("_layouts/foot.html.hbs", include_bytes!["templates/foot.html.hbs"]),
-    ("_layouts/page.html.hbs", include_bytes!["templates/page.html.hbs"]),
-    ("welcome.markdown",       include_bytes!["../example_data/example.markdown"]),
-    ("helianto.toml",          include_bytes!["../example_data/helianto.toml"]),
+    (
+        "css/normalize.css",
+        include_bytes!["../example_data/css/normalize.css"] as &'static [u8],
+    ),
+    (
+        "css/skeleton.css",
+        include_bytes!["../example_data/css/skeleton.css"],
+    ),
+    (
+        "css/custom.css",
+        include_bytes!["../example_data/css/custom.css"],
+    ),
+    (
+        "_layouts/head.html.hbs",
+        include_bytes!["templates/head.html.hbs"],
+    ),
+    (
+        "_layouts/foot.html.hbs",
+        include_bytes!["templates/foot.html.hbs"],
+    ),
+    (
+        "_layouts/page.html.hbs",
+        include_bytes!["templates/page.html.hbs"],
+    ),
+    (
+        "welcome.markdown",
+        include_bytes!["../example_data/example.markdown"],
+    ),
+    (
+        "helianto.toml",
+        include_bytes!["../example_data/helianto.toml"],
+    ),
 ];
-
 
 fn print_usage(program: &str, opts: Options) -> ! {
     let brief = format!("Usage: {} [options] [SRC [DEST]]", program);
@@ -49,26 +71,27 @@ fn print_usage(program: &str, opts: Options) -> ! {
     process::exit(0)
 }
 
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
 
     let mut opts = Options::new();
-    opts.optopt("s",  "settings", "use an alternate config file", "FILE");
-    opts.optflag("i", "init", "populate the source directory with default content");
+    opts.optopt("s", "settings", "use an alternate config file", "FILE");
+    opts.optflag(
+        "i",
+        "init",
+        "populate the source directory with default content",
+    );
     opts.optflag("h", "help", "display this help and exit");
     opts.optflag("V", "version", "output version information and exit");
     opts.optflag("q", "quiet", "only display error messages");
 
-    if ! cfg!(ndebug) {
+    if !cfg!(ndebug) {
         opts.optflag("D", "debug", "display debug information");
     }
 
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => {
-            m
-        }
+        Ok(m) => m,
         Err(f) => {
             let _ = writeln!(&mut io::stderr(), "{}", f.to_string());
             return process::exit(1);
@@ -82,17 +105,17 @@ fn main() {
     }
 
     pretty_env_logger::formatted_builder()
-        .filter(Some("helianto"), 
+        .filter(
+            Some("helianto"),
             if matches.opt_present("quiet") {
                 LevelFilter::Error
             } else if matches.opt_present("debug") {
                 LevelFilter::Trace
-            } else { 
+            } else {
                 LevelFilter::Info
-            }
+            },
         )
         .init();
-
 
     if matches.free.len() > 2 || (matches.opt_present("init") && matches.free.len() > 1) {
         error!("Invalid number of arguments");
@@ -128,7 +151,6 @@ fn main() {
         settings.output_dir = path.clone();
     }
 
-
     if matches.opt_present("init") {
         if matches.opt_present("settings") {
             error!("Option \"--settings\" can't be used with \"--init\".");
@@ -143,9 +165,10 @@ fn main() {
     });
 }
 
-fn read_settings<P: AsRef<Path>>(cwd: &P,
-                                 alternate_file: Option<&P>)
-                                 -> helianto::Result<Settings> {
+fn read_settings<P: AsRef<Path>>(
+    cwd: &P,
+    alternate_file: Option<&P>,
+) -> helianto::Result<Settings> {
     let default_file = cwd.as_ref().join(SETTINGS_FILE);
     let settings_file = alternate_file.map(|p| p.as_ref()).unwrap_or(&default_file);
 
@@ -156,7 +179,6 @@ fn read_settings<P: AsRef<Path>>(cwd: &P,
         Ok(Settings::with_working_directory(cwd.as_ref()))
     }
 }
-
 
 fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
     let source_dir: PathBuf = if let Some(path) = source_dir {
@@ -174,12 +196,10 @@ fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
     }
 }
 
-
 fn print_version() -> ! {
     println!("helianto v{}", env!("CARGO_PKG_VERSION"));
     process::exit(0);
 }
-
 
 fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()> {
     let dest: &Path = dest.as_ref();
@@ -209,7 +229,6 @@ fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()>
         unpack_files(&files[1..], &dest)
     }
 }
-
 
 fn is_file(path: &Path) -> bool {
     fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)

@@ -14,16 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::{error, fmt, result};
+use std::borrow::Borrow;
 use std::io::Error as IoError;
 use std::path::{Path, PathBuf};
-use std::borrow::Borrow;
+use std::{error, fmt, result};
 use toml;
 
-
 pub type Result<T> = result::Result<T, Error>;
-
 
 #[derive(Debug)]
 pub enum Error {
@@ -74,42 +71,58 @@ pub enum Error {
     },
 }
 
-
 impl From<IoError> for Error {
     fn from(error: IoError) -> Error {
         Error::Io(error)
     }
 }
 
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Io(ref err) => write!(f, "IO error: {}", err),
-            Error::Reader { ref path, ref cause} =>
-                write!(f, "Error while reading {}: {}", path.display(), cause),
-            Error::Copy { ref from, ref to, ref cause } => write!(f,
-                                                                  "Could not copy {} to {}: {}",
-                                                                  from.display(),
-                                                                  to.display(),
-                                                                  cause),
-            Error::Output { ref dest, ref cause } => write!(f,
-                                                            "Could not write output file {}: {}",
-                                                            dest.display(),
-                                                            cause),
+            Error::Reader {
+                ref path,
+                ref cause,
+            } => write!(f, "Error while reading {}: {}", path.display(), cause),
+            Error::Copy {
+                ref from,
+                ref to,
+                ref cause,
+            } => write!(
+                f,
+                "Could not copy {} to {}: {}",
+                from.display(),
+                to.display(),
+                cause
+            ),
+            Error::Output {
+                ref dest,
+                ref cause,
+            } => write!(
+                f,
+                "Could not write output file {}: {}",
+                dest.display(),
+                cause
+            ),
             Error::Render { ref cause } => write!(f, "Rendering failed: {}", cause),
-            Error::LoadSettings { ref path, ref cause } => write!(f,
-                       "Could not read settings file {}: {}",
-                       path.display(),
-                       cause),
-            Error::InvalidDate { ref date } =>
-                write!(f, "\"{}\" is not a valid date.", date.trim()),
+            Error::LoadSettings {
+                ref path,
+                ref cause,
+            } => write!(
+                f,
+                "Could not read settings file {}: {}",
+                path.display(),
+                cause
+            ),
+            Error::InvalidDate { ref date } => {
+                write!(f, "\"{}\" is not a valid date.", date.trim())
+            }
             Error::UnknownMetadataField { ref name } => write!(f, "Unknown metadata \"{}\".", name),
             Error::Settings { ref message } => write!(f, "{}", message),
         }
     }
 }
-
 
 impl error::Error for Error {
     fn description(&self) -> &str {

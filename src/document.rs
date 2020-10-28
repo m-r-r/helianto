@@ -14,16 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::iter::FromIterator;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::ascii::AsciiExt;
-use serde::{Serialize, Deserialize};
 use super::Result;
-use utils::{DateTime, FromRaw};
 use metadata::{Date, Field, Keywords};
-
+use serde::{Deserialize, Serialize};
+use std::ascii::AsciiExt;
+use std::collections::HashMap;
+use std::iter::FromIterator;
+use std::rc::Rc;
+use utils::{DateTime, FromRaw};
 
 const CREATED_FIELD: &'static Field = &Date("created") as &Field;
 const MODIFIED_FIELD: &'static Field = &Date("modified") as &Field;
@@ -52,15 +50,15 @@ impl Default for DocumentMetadata {
     }
 }
 
-
 impl DocumentMetadata {
     pub fn from_raw<T>(raw: T) -> Result<DocumentMetadata>
-        where T: Iterator<Item = (String, String)>
+    where
+        T: Iterator<Item = (String, String)>,
     {
         let mut metadata = DocumentMetadata::default();
-        let mut raw_metadata: HashMap<String, String> = raw.map(|(key, value)| {
-            (key.to_ascii_lowercase(), value)
-        }).collect();
+        let mut raw_metadata: HashMap<String, String> = raw
+            .map(|(key, value)| (key.to_ascii_lowercase(), value))
+            .collect();
 
         if let Some(title) = raw_metadata.remove("title") {
             metadata.title = title.trim().into();
@@ -88,7 +86,7 @@ impl DocumentMetadata {
 
 #[test]
 fn test_from_raw() {
-    let raw_metadata: Vec<(String, String)> = vec! [
+    let raw_metadata: Vec<(String, String)> = vec![
         ("title".into(), "Foo bar".into()),
         ("language".into(), "en".into()),
         ("created".into(), "2015-12-23T02:12:35+01:00".into()),
@@ -103,31 +101,33 @@ fn test_from_raw() {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)] 
+#[serde(untagged)]
 pub enum DocumentContent {
-    Text { content: String },
-    Index { documents: Vec<Rc<DocumentMetadata>> },
+    Text {
+        content: String,
+    },
+    Index {
+        documents: Vec<Rc<DocumentMetadata>>,
+    },
 }
 
 impl From<String> for DocumentContent {
     fn from(text: String) -> DocumentContent {
-        DocumentContent::Text { 
-            content: text
-        }
+        DocumentContent::Text { content: text }
     }
 }
-
 
 impl FromIterator<Rc<DocumentMetadata>> for DocumentContent {
-    fn from_iter<T>(documents: T) -> Self where T: IntoIterator<Item=Rc<DocumentMetadata>> {
-        DocumentContent::Index { 
-            documents: documents.into_iter().collect()
+    fn from_iter<T>(documents: T) -> Self
+    where
+        T: IntoIterator<Item = Rc<DocumentMetadata>>,
+    {
+        DocumentContent::Index {
+            documents: documents.into_iter().collect(),
         }
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Document {
@@ -139,6 +139,9 @@ pub struct Document {
 
 impl Document {
     pub fn new(metadata: DocumentMetadata, content: DocumentContent) -> Document {
-        Document { metadata: metadata, content: content }
+        Document {
+            metadata: metadata,
+            content: content,
+        }
     }
 }

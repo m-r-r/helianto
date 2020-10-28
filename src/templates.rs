@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::path::{Path};
-use serde::{Serialize, Deserialize};
-use handlebars::{self, Handlebars, Helper, RenderContext, RenderError, Output, HelperResult, JsonRender};
-use chrono::DateTime;
-use walkdir::{WalkDir, DirEntry};
 use super::{Document, Site};
+use chrono::DateTime;
+use handlebars::{
+    self, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderError,
+};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use walkdir::{DirEntry, WalkDir};
 
 #[derive(Debug, Serialize)]
 pub struct Context<'a> {
@@ -38,21 +39,24 @@ impl<'a> Context<'a> {
     }
 }
 
-
-
-fn date_helper(h: &Helper, 
-               _: &Handlebars, 
-               c: &handlebars::Context, 
-               rc: &mut RenderContext, 
-               out: &mut dyn Output) -> HelperResult 
-{
-    let value = h.param(0)
+fn date_helper(
+    h: &Helper,
+    _: &Handlebars,
+    c: &handlebars::Context,
+    rc: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let value = h
+        .param(0)
         .map(|v| v.value())
         .ok_or(RenderError::new("Param not found for helper \"date\""))?
         .render();
 
-    let format: String = h.hash_get("format")
-        .ok_or(RenderError::new("Parameter \"format\" missing for helper \"date\""))?
+    let format: String = h
+        .hash_get("format")
+        .ok_or(RenderError::new(
+            "Parameter \"format\" missing for helper \"date\"",
+        ))?
         .render();
 
     out.write(
@@ -60,40 +64,47 @@ fn date_helper(h: &Helper,
             .map_err(|_| RenderError::new("Parameter #1 is not a valid date"))?
             .format(format.as_str())
             .to_string()
-            .as_str()
+            .as_str(),
     );
 
     Ok(())
 }
 
-
 const DEFAULT_SEPARATOR: &str = ", ";
 
-fn join_helper(h: &Helper, 
-               _: &Handlebars, 
-               c: &handlebars::Context, 
-               rc: &mut RenderContext, 
-               out: &mut dyn Output) -> HelperResult {
-
-    let value = h.param(0)
+fn join_helper(
+    h: &Helper,
+    _: &Handlebars,
+    c: &handlebars::Context,
+    rc: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let value = h
+        .param(0)
         .map(|v| v.value())
         .ok_or(RenderError::new("Param not found for helper \"join\""))?;
-    
 
-    let separator = h.hash_get("separator")
-        .and_then(|pv| if pv.is_value_missing() { None } else { Some(pv.render()) })
+    let separator = h
+        .hash_get("separator")
+        .and_then(|pv| {
+            if pv.is_value_missing() {
+                None
+            } else {
+                Some(pv.render())
+            }
+        })
         .unwrap_or(String::from(DEFAULT_SEPARATOR));
 
-
     out.write(
-        value.as_array()
+        value
+            .as_array()
             .map(Vec::as_slice)
             .unwrap_or(&[])
             .iter()
             .map(|item| item.render())
             .collect::<Vec<String>>()
             .join(separator.as_str())
-            .as_str()
+            .as_str(),
     );
 
     Ok(())
@@ -104,18 +115,13 @@ pub fn register_helpers(handlebars: &mut Handlebars<'static>) {
     handlebars.register_helper("join", Box::new(join_helper));
 }
 
-
-
-
 pub struct Loader<'r> {
     pub registry: &'r mut Handlebars<'static>,
 }
 
 impl<'r> Loader<'r> {
     pub fn new(registry: &'r mut Handlebars<'static>) -> Self {
-        Loader {
-            registry: registry,
-        }
+        Loader { registry: registry }
     }
 
     pub fn load_builtin_templates(&mut self) {
@@ -155,7 +161,10 @@ impl<'r> Loader<'r> {
                 }
             };
 
-            match self.registry.register_template_file(template_name.as_ref(), path) {
+            match self
+                .registry
+                .register_template_file(template_name.as_ref(), path)
+            {
                 Ok(()) => (),
                 Err(e) => {
                     error!("Could not load template {}: {}", path.display(), e);
@@ -167,7 +176,8 @@ impl<'r> Loader<'r> {
 }
 
 fn template_name(templates_dir: &Path, template_path: &Path) -> Option<String> {
-    template_path.with_extension("")
+    template_path
+        .with_extension("")
         .strip_prefix(templates_dir)
         .or_else(|e| {
             debug!("Path::strip_prefix() -> {}", e);
@@ -189,4 +199,3 @@ fn filter_templates(entry: &DirEntry) -> bool {
         false
     }
 }
-
