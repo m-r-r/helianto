@@ -18,7 +18,6 @@ use super::super::{Error, Result, Settings};
 use super::{Metadata, Reader};
 use pulldown_cmark::{html, Event, Options, Parser, Tag};
 use regex::Regex;
-use std::ascii::AsciiExt;
 use std::fs::File;
 use std::io::Read;
 use std::mem::replace;
@@ -27,7 +26,7 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct MarkdownReader;
 
-static EXTENSIONS: &'static [&'static str] = &["markdown", "md", "mkd", "mdown"];
+static EXTENSIONS: &[&str] = &["markdown", "md", "mkd", "mdown"];
 
 impl Reader for MarkdownReader {
     fn new(_settings: &Settings) -> MarkdownReader {
@@ -40,15 +39,12 @@ impl Reader for MarkdownReader {
 
     fn load(&self, path: &Path) -> Result<(String, Metadata)> {
         let mut input = String::new();
-        try! {
-            File::open(path)
-                .and_then(|mut fd| fd.read_to_string(&mut input))
-                .map_err(|err| Error::Reader {
-                    path: path.into(),
-                    cause: Box::new(err),
-                }
-            )
-        };
+        File::open(path)
+            .and_then(|mut fd| fd.read_to_string(&mut input))
+            .map_err(|err| Error::Reader {
+                path: path.into(),
+                cause: Box::new(err),
+            })?;
 
         Ok(process_markdown(&input))
     }
@@ -90,7 +86,7 @@ impl<'a> Iterator for MetadataExtractor<'a> {
         use self::State::*;
 
         if self.state == State::InsideBody {
-            if self.buffer.len() > 0 {
+            if !self.buffer.is_empty() {
                 return Some(self.buffer.remove(0));
             } else {
                 return self.inner.next();
@@ -201,7 +197,7 @@ fn process_markdown<S: AsRef<str>>(input: &S) -> (String, Metadata) {
     ));
     let mut output = String::with_capacity(input.as_ref().len() * (3 / 2));
     html::push_html(&mut output, &mut parser);
-    (output, parser.metadata.clone())
+    (output, parser.metadata)
 }
 
 #[test]

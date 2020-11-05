@@ -52,20 +52,18 @@ impl Default for Settings {
 impl Settings {
     pub fn with_working_directory(cwd: &Path) -> Settings {
         Settings {
-            source_dir: cwd.join(".").into(),
-            output_dir: cwd.join("_output").into(),
-            layouts_dir: cwd.join("_layouts").into(),
+            source_dir: cwd.join("."),
+            output_dir: cwd.join("_output"),
+            layouts_dir: cwd.join("_layouts"),
             ..Settings::default()
         }
     }
 
     pub fn from_file<P: AsRef<Path>>(path: &P) -> Result<Self> {
-        let mut fd = try!(File::open(path.as_ref()));
+        let mut fd = File::open(path.as_ref())?;
 
         let mut content = String::new();
-        try! {
-            fd.read_to_string(&mut content)
-        };
+        fd.read_to_string(&mut content)?;
 
         let toml: Value =
             toml::de::from_str(content.as_str()).map_err(|err| Error::LoadSettings {
@@ -86,9 +84,7 @@ impl Settings {
         let mut settings = Settings::with_working_directory(cwd);
 
         macro_rules! get_value {
-            ($key: expr) => {
-                try!(read_value(toml, $key))
-            };
+            ($key: expr) => { read_value(toml, $key)? };
         }
 
         macro_rules! set_field {
@@ -108,15 +104,15 @@ impl Settings {
 
         set_field!(
             settings.output_dir,
-            try!(read_directory(toml, "compiler.output_dir", cwd))
+            read_directory(toml, "compiler.output_dir", cwd)?
         );
         set_field!(
             settings.source_dir,
-            try!(read_directory(toml, "compiler.source_dir", cwd))
+            read_directory(toml, "compiler.source_dir", cwd)?
         );
         set_field!(
             settings.layouts_dir,
-            try!(read_directory(toml, "compiler.layouts_dir", cwd))
+            read_directory(toml, "compiler.layouts_dir", cwd)?
         );
         set_field!(settings.max_depth, get_value!("compiler.max_depth"));
         set_field!(settings.follow_links, get_value!("compiler.follow_links"));
@@ -182,7 +178,7 @@ fn read_value<T: FromToml>(toml: &Value, key: &str) -> Result<Option<T>> {
 }
 
 fn read_directory(toml: &Value, key: &str, cwd: &Path) -> Result<Option<PathBuf>> {
-    let path: PathBuf = match try!(read_value::<String>(toml, key)) {
+    let path: PathBuf = match read_value::<String>(toml, key)? {
         None => return Ok(None),
         Some(v) => PathBuf::from(v),
     };

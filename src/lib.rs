@@ -44,13 +44,13 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use walkdir::{DirEntry, WalkDir};
 
-pub use document::{Document, DocumentContent, DocumentMetadata};
-pub use error::{Error, Result};
-pub use generators::Generator;
-use readers::Reader;
-pub use settings::Settings;
-pub use site::Site;
-use templates::Context;
+pub use crate::document::{Document, DocumentContent, DocumentMetadata};
+pub use crate::error::{Error, Result};
+pub use crate::generators::Generator;
+use crate::readers::Reader;
+pub use crate::settings::Settings;
+pub use crate::site::Site;
+use crate::templates::Context;
 
 pub struct Compiler {
     pub settings: Settings,
@@ -102,7 +102,7 @@ impl Compiler {
         path.extension()
             .and_then(|extension| extension.to_str())
             .and_then(|extension_str| self.readers.get(extension_str))
-            .map(|rc| rc.clone())
+            .cloned()
     }
 
     pub fn add_reader<T: Reader + 'static>(&mut self) {
@@ -121,7 +121,7 @@ impl Compiler {
         self.handlebars.clear_templates();
         templates::register_helpers(&mut self.handlebars);
 
-        let ref mut loader = templates::Loader::new(&mut self.handlebars);
+        let loader = &mut templates::Loader::new(&mut self.handlebars);
         loader.load_builtin_templates();
 
         let templates_dir = self.settings.source_dir.join("_layouts");
@@ -134,23 +134,18 @@ impl Compiler {
     }
 
     fn render_context(&self, context: Context, path: &Path) -> Result<()> {
-        match ::toml::ser::to_string_pretty(&context) {
-            Ok(s) => println!("context : {:}", s.to_string()),
-            Err(e) => error!("error: {:?}", e),
-        }
-        let output: String = try! { self.handlebars.render("page.html", &context)
+        let output: String = self.handlebars.render("page.html", &context)
                 .map_err(|err| Error::Render {
                     cause: Box::new(err)
-                })
-        };
+                })?;
 
         let dest_file = self.settings.output_dir.join(&path);
         let dest_dir = dest_file.parent().unwrap();
         fs::create_dir_all(&dest_dir)
             .and_then(|_| {
-                let mut fd = try! { File::create(&dest_file) };
-                try! { fd.write(output.as_ref()) };
-                try! { fd.sync_data() };
+                let mut fd = File::create(&dest_file)?;
+                fd.write(output.as_ref())?;
+                fd.sync_data()?;
                 Ok(())
             })
             .map_err(|err| Error::Output {
@@ -159,8 +154,8 @@ impl Compiler {
             })
     }
 
-    fn build_document(&mut self, reader: Rc<Reader>, path: &Path) -> Result<()> {
-        let (body, metadata) = try! { reader.load(path) };
+    fn build_document(&mut self, reader: Rc<dyn Reader>, path: &Path) -> Result<()> {
+        let (body, metadata) = reader.load(path)?;
         let dest = path
             .strip_prefix(&self.settings.source_dir)
             .map(|relpath| relpath.with_extension("html"))
@@ -169,7 +164,7 @@ impl Compiler {
         let document = Document {
             metadata: DocumentMetadata {
                 url: dest.to_str().unwrap().into(),
-                ..try! { DocumentMetadata::from_raw(metadata.into_iter()) }
+                .. DocumentMetadata::from_raw(metadata.into_iter())?
             },
             content: DocumentContent::from(body),
         };
@@ -210,11 +205,10 @@ impl Compiler {
     }
 
     fn run_generators(&mut self) -> Result<()> {
-        let documents: Vec<Rc<DocumentMetadata>> =
-            self.documents.values().map(|rc| rc.clone()).collect();
+        let documents: Vec<Rc<DocumentMetadata>> = self.documents.values().cloned().collect();
 
         for generator in self.generators.iter() {
-            let generated_docs = try! { generator.generate(documents.as_ref()) };
+            let generated_docs = generator.generate(documents.as_ref())?;
 
             for generated_doc in generated_docs.iter() {
                 if self.documents.contains_key(&generated_doc.metadata.url) {
@@ -234,8 +228,8 @@ impl Compiler {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        try! {self.check_settings()};
-        try! {self.load_templates()};
+        self.check_settings()?;
+        self.load_templates()?;
 
         let entries = WalkDir::new(&self.settings.source_dir)
             .min_depth(1)
@@ -243,13 +237,7 @@ impl Compiler {
             .follow_links(self.settings.follow_links)
             .into_iter();
 
-        let entry_filter = |ref e: &walkdir::DirEntry| {
-            let follow = filter_entry(e);
-            trace!("filter_entry({:?}) -> {:?}", e, follow);
-            follow
-        };
-
-        for entry in entries.filter_entry(entry_filter) {
+        for entry in entries.filter_entry(filter_entry) {
             let entry = match entry {
                 Err(_) => continue,
                 Ok(e) => {
@@ -271,7 +259,7 @@ impl Compiler {
             }
         }
 
-        try! {self.run_generators()};
+        self.run_generators()?;
 
         Ok(())
     }

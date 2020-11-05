@@ -16,7 +16,6 @@
 
 use chrono::{self, FixedOffset};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::ascii::AsciiExt;
 use std::path::{Component, Path, PathBuf};
 
 fn is_hidden<S: AsRef<Path> + Sized>(path: &S) -> bool {
@@ -67,7 +66,7 @@ pub fn remove_leading_dot<S: AsRef<Path>>(path: S) -> PathBuf {
 
 #[test]
 fn test_remove_leading_dot() {
-    const PATHS: &'static [(&'static str, &'static str)] = &[
+    const PATHS: &[(&str, &str)] = &[
         ("/foo/bar/baz", "/foo/bar/baz"),
         ("foo/bar/baz", "foo/bar/baz"),
         ("./foo/bar/baz", "foo/bar/baz"),

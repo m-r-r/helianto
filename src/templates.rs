@@ -19,7 +19,7 @@ use chrono::DateTime;
 use handlebars::{
     self, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderError,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
 
@@ -32,18 +32,15 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn new<'b>(site: &'b Site, document: &'b Document) -> Context<'b> {
-        Context {
-            site: site,
-            document: document,
-        }
+        Context { site, document }
     }
 }
 
 fn date_helper(
     h: &Helper,
     _: &Handlebars,
-    c: &handlebars::Context,
-    rc: &mut RenderContext,
+    _c: &handlebars::Context,
+    _rc: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
     let value = h
@@ -65,7 +62,7 @@ fn date_helper(
             .format(format.as_str())
             .to_string()
             .as_str(),
-    );
+    )?;
 
     Ok(())
 }
@@ -75,8 +72,8 @@ const DEFAULT_SEPARATOR: &str = ", ";
 fn join_helper(
     h: &Helper,
     _: &Handlebars,
-    c: &handlebars::Context,
-    rc: &mut RenderContext,
+    _c: &handlebars::Context,
+    _rc: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
     let value = h
@@ -105,7 +102,7 @@ fn join_helper(
             .collect::<Vec<String>>()
             .join(separator.as_str())
             .as_str(),
-    );
+    )?;
 
     Ok(())
 }
@@ -121,7 +118,7 @@ pub struct Loader<'r> {
 
 impl<'r> Loader<'r> {
     pub fn new(registry: &'r mut Handlebars<'static>) -> Self {
-        Loader { registry: registry }
+        Loader { registry }
     }
 
     pub fn load_builtin_templates(&mut self) {

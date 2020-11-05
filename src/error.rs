@@ -16,9 +16,8 @@
 
 use std::borrow::Borrow;
 use std::io::Error as IoError;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{error, fmt, result};
-use toml;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -28,31 +27,31 @@ pub enum Error {
     // An error happened while reading a document.
     Reader {
         path: PathBuf,
-        cause: Box<error::Error>,
+        cause: Box<dyn error::Error>,
     },
 
     // An error happened while rendering a file
     Render {
-        cause: Box<error::Error>,
+        cause: Box<dyn error::Error>,
     },
 
     // An error happened while copying a file
     Copy {
         from: PathBuf,
         to: PathBuf,
-        cause: Box<error::Error>,
+        cause: Box<dyn error::Error>,
     },
 
     // An error happened while writing an output file
     Output {
         dest: PathBuf,
-        cause: Box<error::Error>,
+        cause: Box<dyn error::Error>,
     },
 
     // An error happened while reading the configuration file
     LoadSettings {
         path: PathBuf,
-        cause: Box<error::Error>,
+        cause: Box<dyn error::Error>,
     },
 
     // The software is misconfigured
@@ -125,21 +124,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Io(ref err) => err.description(),
-            Error::Reader { ref cause, .. } => cause.description(),
-            Error::Copy { ref cause, .. } => cause.description(),
-            Error::Output { ref cause, .. } => cause.description(),
-            Error::Render { ref cause, .. } => cause.description(),
-            Error::LoadSettings { ref cause, .. } => cause.description(),
-            Error::InvalidDate { .. } => "Invalid date",
-            Error::UnknownMetadataField { .. } => "Unknown metadata field",
-            Error::Settings { .. } => "Invalid configuration",
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             Error::Io(ref err) => Some(err),
             Error::Reader { ref cause, .. } => Some(cause.borrow()),

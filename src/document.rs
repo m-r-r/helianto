@@ -15,17 +15,16 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::Result;
-use metadata::{Date, Field, Keywords};
+use crate::metadata::{Date, Field, Keywords};
+use crate::utils::DateTime;
 use serde::{Deserialize, Serialize};
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
-use utils::{DateTime, FromRaw};
 
-const CREATED_FIELD: &'static Field = &Date("created") as &Field;
-const MODIFIED_FIELD: &'static Field = &Date("modified") as &Field;
-const KEYWORDS_FIELD: &'static Field = &Keywords("keywords") as &Field;
+const CREATED_FIELD: &dyn Field = &Date("created") as &dyn Field;
+const MODIFIED_FIELD: &dyn Field = &Date("modified") as &dyn Field;
+const KEYWORDS_FIELD: &dyn Field = &Keywords("keywords") as &dyn Field;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentMetadata {
@@ -69,15 +68,15 @@ impl DocumentMetadata {
         }
 
         if let Some(keywords) = raw_metadata.remove("keywords") {
-            metadata.keywords = try! { KEYWORDS_FIELD.from_raw(keywords.as_ref()) }.into();
+            metadata.keywords = KEYWORDS_FIELD.from_raw(keywords.as_ref())?.into();
         }
 
         if let Some(ref created) = raw_metadata.remove("created") {
-            metadata.created = try! { CREATED_FIELD.from_raw(created) }.into();
+            metadata.created = CREATED_FIELD.from_raw(created)?.into();
         }
 
         if let Some(ref modified) = raw_metadata.remove("modified") {
-            metadata.modified = try! { MODIFIED_FIELD.from_raw(modified) }.into();
+            metadata.modified = MODIFIED_FIELD.from_raw(modified)?.into();
         }
 
         Ok(metadata)
@@ -139,9 +138,6 @@ pub struct Document {
 
 impl Document {
     pub fn new(metadata: DocumentMetadata, content: DocumentContent) -> Document {
-        Document {
-            metadata: metadata,
-            content: content,
-        }
+        Document { metadata, content }
     }
 }

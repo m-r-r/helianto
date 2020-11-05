@@ -28,9 +28,9 @@ use std::{env, fs, io, process};
 
 use helianto::{Compiler, Error, Result, Settings};
 
-const SETTINGS_FILE: &'static str = "helianto.toml";
+const SETTINGS_FILE: &str = "helianto.toml";
 
-const DEFAULT_FILES: &'static [(&'static str, &'static [u8])] = &[
+const DEFAULT_FILES: &[(&str, &[u8])] = &[
     (
         "css/normalize.css",
         include_bytes!["../example_data/css/normalize.css"] as &'static [u8],
@@ -65,10 +65,9 @@ const DEFAULT_FILES: &'static [(&'static str, &'static [u8])] = &[
     ),
 ];
 
-fn print_usage(program: &str, opts: Options) -> ! {
+fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} [options] [SRC [DEST]]", program);
     print!("{}", opts.usage(&brief));
-    process::exit(0)
 }
 
 fn main() {
@@ -94,7 +93,7 @@ fn main() {
         Ok(m) => m,
         Err(f) => {
             let _ = writeln!(&mut io::stderr(), "{}", f.to_string());
-            return process::exit(1);
+            process::exit(1);
         }
     };
 
@@ -119,10 +118,10 @@ fn main() {
 
     if matches.free.len() > 2 || (matches.opt_present("init") && matches.free.len() > 1) {
         error!("Invalid number of arguments");
-        return process::exit(1);
+        process::exit(1);
     }
 
-    let source_dir = if matches.free.len() > 0 {
+    let source_dir = if !matches.free.is_empty() {
         Some(PathBuf::from(matches.free[0].clone()))
     } else {
         None
@@ -154,14 +153,14 @@ fn main() {
     if matches.opt_present("init") {
         if matches.opt_present("settings") {
             error!("Option \"--settings\" can't be used with \"--init\".");
-            return process::exit(1);
+            process::exit(1);
         }
         return init_content(source_dir.as_ref());
     }
 
     Compiler::new(&settings).run().unwrap_or_else(|err| {
         error!("Compilation failed: {}", err);
-        return process::exit(2);
+        process::exit(2)
     });
 }
 
@@ -180,7 +179,7 @@ fn read_settings<P: AsRef<Path>>(
     }
 }
 
-fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
+fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) {
     let source_dir: PathBuf = if let Some(path) = source_dir {
         path.as_ref().into()
     } else {
@@ -196,14 +195,13 @@ fn init_content<P: AsRef<Path>>(source_dir: Option<&P>) -> ! {
     }
 }
 
-fn print_version() -> ! {
+fn print_version() {
     println!("helianto v{}", env!("CARGO_PKG_VERSION"));
-    process::exit(0);
 }
 
 fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()> {
     let dest: &Path = dest.as_ref();
-    if files.len() == 0 {
+    if files.is_empty() {
         Ok(())
     } else {
         let current_file = files[0];
@@ -212,18 +210,16 @@ fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()>
         if is_file(&dest_file) {
             info!("Skipping {} : the file already exists", dest_file.display());
         } else {
-            let parent_dir = try! {
-                dest_file.parent().ok_or(Error::Settings {
+            let parent_dir = dest_file.parent().ok_or(Error::Settings {
                     message: format!("\"{}\" is not a valid directory", dest.display()),
-                })
-            };
+                })?;
 
             debug!("Creating directory {} …", parent_dir.display());
-            try! { fs::create_dir_all(&parent_dir) }
+            fs::create_dir_all(&parent_dir)?;
 
             info!("Creating {} …", current_file.0);
-            let mut fh = try! { fs::File::create(&dest_file) };
-            try! { fh.write(current_file.1).map(void) }
+            let mut fh = fs::File::create(&dest_file)?;
+            fh.write(current_file.1)?;
         }
 
         unpack_files(&files[1..], &dest)
@@ -232,9 +228,4 @@ fn unpack_files<P: AsRef<Path>>(files: &[(&str, &[u8])], dest: &P) -> Result<()>
 
 fn is_file(path: &Path) -> bool {
     fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
-}
-
-#[inline]
-fn void<T: 'static>(_arg: T) -> () {
-    ()
 }

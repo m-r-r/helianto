@@ -32,26 +32,6 @@ pub enum Value {
     Map(BTreeMap<String, Value>),
 }
 
-/*
-impl ToJson for Value {
-    fn to_json(&self) -> Json {
-        use self::Value::*;
-        match *self {
-            Null => Json::Null,
-            Bool(value) => Json::Boolean(value),
-            I64(value) => Json::I64(value),
-            U64(value) => Json::U64(value),
-            F64(value) => Json::F64(value),
-            String(ref value) => Json::String(value.clone()),
-            DateTime(ref value) => value.to_json(),
-            Vec(ref vec) => Json::Array(vec.iter().map(|v| v.to_json()).collect()),
-            Map(ref map) =>
-                Json::Object(map.iter().map(|(k, v)| (k.clone(), v.to_json())).collect()),
-        }
-    }
-}
-*/
-
 impl<'l> From<&'l str> for Value {
     fn from(string: &str) -> Value {
         Value::String(string.into())
@@ -66,7 +46,7 @@ where
     where
         I: IntoIterator<Item = V>,
     {
-        Value::Vec(iterator.into_iter().map(|v| Value::from(v)).collect())
+        Value::Vec(iterator.into_iter().map(Value::from).collect())
     }
 }
 
@@ -186,7 +166,7 @@ pub trait Field {
 }
 
 fn read_metadata_list(metadata: &str) -> Result<Value> {
-    let sep = if let Some(_) = metadata.find(';') {
+    let sep = if metadata.find(';').is_some() {
         ';'
     } else {
         ','
@@ -194,7 +174,7 @@ fn read_metadata_list(metadata: &str) -> Result<Value> {
     Ok(metadata
         .split(sep)
         .map(|s| String::from(s.trim()))
-        .filter(|s| s.len() > 0)
+        .filter(|s| !s.is_empty())
         .collect())
 }
 
