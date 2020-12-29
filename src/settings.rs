@@ -14,15 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::path::{Path, PathBuf};
+use super::utils::remove_leading_dot;
+use super::{Error, Result};
+use num::NumCast;
 use std::fs::File;
 use std::io::Read;
-use toml::{Parser, Value};
-use super::{Error, Result};
-use super::utils::remove_leading_dot;
-use num::NumCast;
-
+use std::path::{Path, PathBuf};
+use toml::{self, Value};
 
 #[derive(Clone, Debug)]
 pub struct Settings {
@@ -54,67 +52,74 @@ impl Default for Settings {
 impl Settings {
     pub fn with_working_directory(cwd: &Path) -> Settings {
         Settings {
-            source_dir: cwd.join(".").into(),
-            output_dir: cwd.join("_output").into(),
-            layouts_dir: cwd.join("_layouts").into(),
-            .. Settings::default()
+            source_dir: cwd.join("."),
+            output_dir: cwd.join("_output"),
+            layouts_dir: cwd.join("_layouts"),
+            ..Settings::default()
         }
     }
 
     pub fn from_file<P: AsRef<Path>>(path: &P) -> Result<Self> {
-        let mut fd = try!(File::open(path.as_ref()));
+        let mut fd = File::open(path.as_ref())?;
 
         let mut content = String::new();
-        try! {
-            fd.read_to_string(&mut content)
-        };
+        fd.read_to_string(&mut content)?;
 
-        let mut parser = Parser::new(content.as_ref());
-        let toml = try! {
-            parser.parse()
-                  .map(|table| Value::Table(table))
-                  .ok_or((path, parser))
-        };
+        let toml: Value =
+            toml::de::from_str(content.as_str()).map_err(|err| Error::LoadSettings {
+                path: path.as_ref().into(),
+                cause: Box::new(err),
+            })?;
 
-        let parent_dir = path.as_ref().parent()
+        let parent_dir = path
+            .as_ref()
+            .parent()
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
 
         Settings::from_toml(&toml, &parent_dir)
     }
 
-
     fn from_toml(toml: &Value, cwd: &Path) -> Result<Self> {
         let mut settings = Settings::with_working_directory(cwd);
 
         macro_rules! get_value {
-            ($key: expr) => (
-                try!(read_value(toml, $key))
-            )
+            ($key: expr) => { read_value(toml, $key)? };
         }
 
         macro_rules! set_field {
-            ($field: expr, $value: expr) => (
+            ($field: expr, $value: expr) => {
                 if let Some(tmp) = $value {
                     $field = tmp;
                 }
-            )
+            };
         }
 
         set_field!(settings.site_title, get_value!("site.title"));
         set_field!(settings.site_url, get_value!("site.url"));
-        set_field!(settings.site_language, get_value!("site.language").map(Some));
+        set_field!(
+            settings.site_language,
+            get_value!("site.language").map(Some)
+        );
 
-        set_field!(settings.output_dir, try!(read_directory(toml, "compiler.output_dir", cwd)));
-        set_field!(settings.source_dir, try!(read_directory(toml, "compiler.source_dir", cwd)));
-        set_field!(settings.layouts_dir, try!(read_directory(toml, "compiler.layouts_dir", cwd)));
+        set_field!(
+            settings.output_dir,
+            read_directory(toml, "compiler.output_dir", cwd)?
+        );
+        set_field!(
+            settings.source_dir,
+            read_directory(toml, "compiler.source_dir", cwd)?
+        );
+        set_field!(
+            settings.layouts_dir,
+            read_directory(toml, "compiler.layouts_dir", cwd)?
+        );
         set_field!(settings.max_depth, get_value!("compiler.max_depth"));
         set_field!(settings.follow_links, get_value!("compiler.follow_links"));
 
         Ok(settings)
     }
 }
-
 
 trait FromToml: 'static + Sized {
     fn type_str() -> &'static str;
@@ -152,19 +157,19 @@ impl FromToml for bool {
     }
 }
 
-
-
 fn read_value<T: FromToml>(toml: &Value, key: &str) -> Result<Option<T>> {
-    if let Some(value) = toml.lookup(key) {
+    if let Some(value) = toml.get(key) {
         if value.type_str() == T::type_str() {
             Ok(Some(FromToml::from_toml(value)))
         } else {
             Err(Error::Settings {
-                message: format!("found a value of type `{}` instead of a value of type `{}` \
+                message: format!(
+                    "found a value of type `{}` instead of a value of type `{}` \
                                   for the key `{}`",
-                                  value.type_str(),
-                                  T::type_str(),
-                                  key)
+                    value.type_str(),
+                    T::type_str(),
+                    key
+                ),
             })
         }
     } else {
@@ -173,18 +178,14 @@ fn read_value<T: FromToml>(toml: &Value, key: &str) -> Result<Option<T>> {
 }
 
 fn read_directory(toml: &Value, key: &str, cwd: &Path) -> Result<Option<PathBuf>> {
-    let path: PathBuf = match try!(read_value::<String>(toml, key)) {
+    let path: PathBuf = match read_value::<String>(toml, key)? {
         None => return Ok(None),
         Some(v) => PathBuf::from(v),
     };
 
-    Ok(Some(
-        cwd.join(
-            if path.starts_with(".") {
-                remove_leading_dot(&path)
-            } else {
-                path
-            }
-        )
-    ))
+    Ok(Some(cwd.join(if path.starts_with(".") {
+        remove_leading_dot(&path)
+    } else {
+        path
+    })))
 }

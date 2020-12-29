@@ -14,21 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::iter::FromIterator;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::ascii::AsciiExt;
-use rustc_serialize::json::{Json, Object, ToJson};
 use super::Result;
-use utils::{DateTime, FromRaw};
-use metadata::{Date, Field, Keywords};
+use crate::metadata::{Date, Field, Keywords};
+use crate::utils::DateTime;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::iter::FromIterator;
+use std::rc::Rc;
 
-const CREATED_FIELD: &'static Field = &Date("created") as &Field;
-const MODIFIED_FIELD: &'static Field = &Date("modified") as &Field;
-const KEYWORDS_FIELD: &'static Field = &Keywords("keywords") as &Field;
+const CREATED_FIELD: &dyn Field = &Date("created") as &dyn Field;
+const MODIFIED_FIELD: &dyn Field = &Date("modified") as &dyn Field;
+const KEYWORDS_FIELD: &dyn Field = &Keywords("keywords") as &dyn Field;
 
-#[derive(Debug, Clone, RustcEncodable, RustcDecodable)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentMetadata {
     pub url: String,
     pub title: String,
@@ -51,15 +49,15 @@ impl Default for DocumentMetadata {
     }
 }
 
-
 impl DocumentMetadata {
     pub fn from_raw<T>(raw: T) -> Result<DocumentMetadata>
-        where T: Iterator<Item = (String, String)>
+    where
+        T: Iterator<Item = (String, String)>,
     {
         let mut metadata = DocumentMetadata::default();
-        let mut raw_metadata: HashMap<String, String> = raw.map(|(key, value)| {
-            (key.to_ascii_lowercase(), value)
-        }).collect();
+        let mut raw_metadata: HashMap<String, String> = raw
+            .map(|(key, value)| (key.to_ascii_lowercase(), value))
+            .collect();
 
         if let Some(title) = raw_metadata.remove("title") {
             metadata.title = title.trim().into();
@@ -70,15 +68,15 @@ impl DocumentMetadata {
         }
 
         if let Some(keywords) = raw_metadata.remove("keywords") {
-            metadata.keywords = try! { KEYWORDS_FIELD.from_raw(keywords.as_ref()) }.into();
+            metadata.keywords = KEYWORDS_FIELD.from_raw(keywords.as_ref())?.into();
         }
 
         if let Some(ref created) = raw_metadata.remove("created") {
-            metadata.created = try! { CREATED_FIELD.from_raw(created) }.into();
+            metadata.created = CREATED_FIELD.from_raw(created)?.into();
         }
 
         if let Some(ref modified) = raw_metadata.remove("modified") {
-            metadata.modified = try! { MODIFIED_FIELD.from_raw(modified) }.into();
+            metadata.modified = MODIFIED_FIELD.from_raw(modified)?.into();
         }
 
         Ok(metadata)
@@ -87,7 +85,7 @@ impl DocumentMetadata {
 
 #[test]
 fn test_from_raw() {
-    let raw_metadata: Vec<(String, String)> = vec! [
+    let raw_metadata: Vec<(String, String)> = vec![
         ("title".into(), "Foo bar".into()),
         ("language".into(), "en".into()),
         ("created".into(), "2015-12-23T02:12:35+01:00".into()),
@@ -102,71 +100,44 @@ fn test_from_raw() {
     }
 }
 
-
-impl ToJson for DocumentMetadata {
-    fn to_json(&self) -> Json {
-        let mut obj = Object::new();
-        obj.insert("url".into(), self.url.to_json());
-        obj.insert("title".into(), self.title.to_json());
-        obj.insert("language".into(), self.language.to_json());
-        obj.insert("modified".into(), self.modified.to_json());
-        obj.insert("created".into(), self.created.to_json());
-        obj.insert("keywords".into(), self.keywords.to_json());
-        Json::Object(obj)
-    }
-}
-
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum DocumentContent {
-    Text(String),
-    Index(Vec<Rc<DocumentMetadata>>),
+    Text {
+        content: String,
+    },
+    Index {
+        documents: Vec<Rc<DocumentMetadata>>,
+    },
 }
 
 impl From<String> for DocumentContent {
     fn from(text: String) -> DocumentContent {
-        DocumentContent::Text(text)
+        DocumentContent::Text { content: text }
     }
 }
-
 
 impl FromIterator<Rc<DocumentMetadata>> for DocumentContent {
-    fn from_iter<T>(documents: T) -> Self where T: IntoIterator<Item=Rc<DocumentMetadata>> {
-        DocumentContent::Index(documents.into_iter().collect())
+    fn from_iter<T>(documents: T) -> Self
+    where
+        T: IntoIterator<Item = Rc<DocumentMetadata>>,
+    {
+        DocumentContent::Index {
+            documents: documents.into_iter().collect(),
+        }
     }
 }
 
-
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Document {
+    #[serde(flatten)]
     pub metadata: DocumentMetadata,
+    #[serde(flatten)]
     pub content: DocumentContent,
 }
 
 impl Document {
     pub fn new(metadata: DocumentMetadata, content: DocumentContent) -> Document {
-        Document { metadata: metadata, content: content }
+        Document { metadata, content }
     }
 }
-
-
-impl ToJson for Document {
-    fn to_json(&self) -> Json {
-        let mut obj = match self.metadata.to_json() {
-            Json::Object(o) => o,
-            _ => unreachable!("DocumentMetadata#to_json() must return a Json::Object."),
-        };
-
-        match self.content {
-            DocumentContent::Text(ref content) => {
-                obj.insert("content".into(), content.to_json());
-            }
-            DocumentContent::Index(ref documents) => {
-                obj.insert("documents".into(), Json::Array(documents.iter()
-                                                           .map(|doc| doc.to_json())
-                                                           .collect()
-                                                           ));
-            }
-        }
-
-        Json::Object(obj)
-    }
-}
-

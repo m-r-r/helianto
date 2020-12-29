@@ -14,26 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::default::Default;
-use rustc_serialize::json::{Json, Object, ToJson};
 use super::Settings;
+use serde::{Deserialize, Serialize};
+use std::default::Default;
 
-#[derive(Debug, RustcEncodable, RustcDecodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Site {
     pub title: String,
     pub language: Option<String>,
     pub url: String,
-}
-
-impl ToJson for Site {
-    fn to_json(&self) -> Json {
-        let mut obj = Object::new();
-        obj.insert("title".into(), self.title.to_json());
-        obj.insert("language".into(), self.language.to_json());
-        obj.insert("url".into(), self.url.to_json());
-        Json::Object(obj)
-    }
 }
 
 impl Default for Site {

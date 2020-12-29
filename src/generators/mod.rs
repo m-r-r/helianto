@@ -14,18 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::rc::Rc;
-use super::Result;
 use super::document::{Document, DocumentMetadata};
+use super::Result;
+use std::rc::Rc;
 
 mod index;
 pub use self::index::IndexGenerator;
 
-
-
 pub trait Generator {
-    fn new() -> Self where Self: Sized;
+    fn new() -> Self
+    where
+        Self: Sized;
     fn generate(&self, docs: &[Rc<DocumentMetadata>]) -> Result<Vec<Rc<Document>>>;
 }
-
