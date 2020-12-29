@@ -14,19 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
-use std::rc::Rc;
+use super::super::{Document, DocumentContent, DocumentMetadata, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use super::super::{Result, Document, DocumentMetadata, DocumentContent};
-
-
+use std::rc::Rc;
 
 pub struct IndexGenerator;
 
 impl super::Generator for IndexGenerator {
-    fn new() -> IndexGenerator { IndexGenerator }
+    fn new() -> IndexGenerator {
+        IndexGenerator
+    }
 
     fn generate(&self, docs: &[Rc<DocumentMetadata>]) -> Result<Vec<Rc<Document>>> {
         let mut indexes: HashMap<String, Vec<Rc<DocumentMetadata>>> = HashMap::new();
@@ -34,10 +32,7 @@ impl super::Generator for IndexGenerator {
         for doc in docs.iter() {
             let mut path: PathBuf = PathBuf::from(&doc.url);
 
-
-
             while let Some(parent) = path.clone().parent() {
-
                 let index_url = match parent.to_str() {
                     Some(string) => string.into(),
                     None => continue,
@@ -50,21 +45,20 @@ impl super::Generator for IndexGenerator {
             }
         }
 
+        Ok(indexes
+            .into_iter()
+            .map(|(url, mut docs)| {
+                let meta = DocumentMetadata {
+                    url: format!("{}/index.html", url),
+                    title: format!("Index of {}", if url != "" { url } else { "/".into() }),
+                    ..DocumentMetadata::default()
+                };
 
-        Ok(indexes.into_iter()
-                  .map(|(url, mut docs)| {
+                docs.sort_by(|b, a| a.created.cmp(&b.created));
+                let content = DocumentContent::Index { documents: docs };
 
-                      let meta = DocumentMetadata {
-                          url: format!("{}/index.html", url),
-                          title: format!("Index of {}", if url != "" { url } else { "/".into() }),
-                          ..DocumentMetadata::default()
-                      };
-
-                      docs.sort_by(|b, a| a.created.cmp(&b.created));
-                      let content = DocumentContent::Index(docs);
-
-                      Rc::new(Document::new(meta, content))
-                  })
-                  .collect())
+                Rc::new(Document::new(meta, content))
+            })
+            .collect())
     }
 }

@@ -14,136 +14,123 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::path::{Path};
-use rustc_serialize::json::{Json, Object, ToJson};
-use handlebars::{self, Handlebars, Helper, JsonRender, RenderContext, RenderError};
-use chrono::DateTime;
-use walkdir::{WalkDir, WalkDirIterator, DirEntry};
 use super::{Document, Site};
+use chrono::DateTime;
+use handlebars::{
+    self, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderError,
+};
+use serde::Serialize;
+use std::path::Path;
+use walkdir::{DirEntry, WalkDir};
 
+#[derive(Debug, Serialize)]
 pub struct Context<'a> {
     pub site: &'a Site,
+    #[serde(rename = "page")]
     pub document: &'a Document,
 }
 
 impl<'a> Context<'a> {
     pub fn new<'b>(site: &'b Site, document: &'b Document) -> Context<'b> {
-        Context {
-            site: site,
-            document: document,
-        }
+        Context { site, document }
     }
 }
 
-impl<'a> ToJson for Context<'a> {
-    fn to_json(&self) -> Json {
-        let mut obj = Object::new();
-        obj.insert("site".into(), self.site.to_json());
-        obj.insert("page".into(), self.document.to_json());
-        Json::Object(obj)
-    }
+fn date_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _c: &handlebars::Context,
+    _rc: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let value = h
+        .param(0)
+        .map(|v| v.value())
+        .ok_or(RenderError::new("Param not found for helper \"date\""))?
+        .render();
+
+    let format: String = h
+        .hash_get("format")
+        .ok_or(RenderError::new(
+            "Parameter \"format\" missing for helper \"date\"",
+        ))?
+        .render();
+
+    out.write(
+        DateTime::parse_from_rfc3339(value.as_str())
+            .map_err(|_| RenderError::new("Parameter #1 is not a valid date"))?
+            .format(format.as_str())
+            .to_string()
+            .as_str(),
+    )?;
+
+    Ok(())
 }
 
+const DEFAULT_SEPARATOR: &str = ", ";
 
-fn date_helper(c: &handlebars::Context,
-                   h: &Helper,
-                   _: &Handlebars,
-                   rc: &mut RenderContext)
-                   -> Result<(), RenderError> {
-    let value_param = try!(h.param(0).ok_or_else(|| {
-        RenderError { desc: "Param not found for helper \"date\"".into() }
-    }));
-    let format_param = try! { h.hash_get("format").ok_or(RenderError {
-            desc: "Parameter \"format\" missing for helper \"date\"".into()
-        }).and_then(|json| json.as_string().ok_or(RenderError {
-            desc: "Parameter \"format\" must be a string".into()
-        }))
-    };
+fn join_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _c: &handlebars::Context,
+    _rc: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let value = h
+        .param(0)
+        .map(|v| v.value())
+        .ok_or(RenderError::new("Param not found for helper \"join\""))?;
 
-    let argument = if value_param.starts_with("@") {
-                       rc.get_local_var(value_param)
-                   } else {
-                       c.navigate(rc.get_path(), value_param)
-                   }
-                   .clone();
-
-    let value = if argument.is_null() {
-        return Ok(());
-    } else {
-        argument.render()
-    };
-
-    let date = try! {
-        DateTime::parse_from_rfc3339(value.as_ref()).map_err(|_| RenderError {
-            desc: "Parameter #1 is not a valid date".into()
+    let separator = h
+        .hash_get("separator")
+        .and_then(|pv| {
+            if pv.is_value_missing() {
+                None
+            } else {
+                Some(pv.render())
+            }
         })
-    };
+        .unwrap_or(String::from(DEFAULT_SEPARATOR));
 
-    let _ = try! {
-        write!(rc.writer, "{}", date.format(format_param.as_ref()))
-    };
-    Ok(())
-}
-
-
-fn join_helper(c: &handlebars::Context,
-                   h: &Helper,
-                   _: &Handlebars,
-                   rc: &mut RenderContext)
-                   -> Result<(), RenderError> {
-    let value_param = try!(h.param(0).ok_or_else(|| {
-        RenderError { desc: "Param not found for helper \"join\"".into() }
-    }));
-
-    let separator = h.hash_get("separator")
-        .and_then(|json| json.as_string())
-        .unwrap_or(", ");
-
-    let argument = if value_param.starts_with("@") {
-                       rc.get_local_var(value_param)
-                   } else {
-                       c.navigate(rc.get_path(), value_param)
-                   }
-                   .clone();
-
-    if let Some(items) = argument.as_array() {
-        let result: Vec<String> = items.iter().map(|item| item.render()).collect();
-        let _ = try!(write!(rc.writer, "{}", result.join(separator)));
-    }
+    out.write(
+        value
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+            .iter()
+            .map(|item| item.render())
+            .collect::<Vec<String>>()
+            .join(separator.as_str())
+            .as_str(),
+    )?;
 
     Ok(())
 }
 
-pub fn register_helpers(handlebars: &mut Handlebars) {
+pub fn register_helpers(handlebars: &mut Handlebars<'static>) {
     handlebars.register_helper("date", Box::new(date_helper));
     handlebars.register_helper("join", Box::new(join_helper));
 }
 
-
-
-
 pub struct Loader<'r> {
-    pub registry: &'r mut Handlebars,
+    pub registry: &'r mut Handlebars<'static>,
 }
 
 impl<'r> Loader<'r> {
-    pub fn new(registry: &'r mut Handlebars) -> Self {
-        Loader {
-            registry: registry,
-        }
+    pub fn new(registry: &'r mut Handlebars<'static>) -> Self {
+        Loader { registry }
     }
 
     pub fn load_builtin_templates(&mut self) {
         // Default templates :
         self.registry
-            .register_template_string("head.html", include_str!("templates/head.html.hbs").into())
+            .register_template_string("head.html", include_str!("templates/head.html.hbs"))
             .unwrap();
         self.registry
-            .register_template_string("page.html", include_str!("templates/page.html.hbs").into())
+            .register_template_string("page.html", include_str!("templates/page.html.hbs"))
             .unwrap();
         self.registry
-            .register_template_string("foot.html", include_str!("templates/foot.html.hbs").into())
+            .register_template_string("foot.html", include_str!("templates/foot.html.hbs"))
             .unwrap();
     }
 
@@ -154,12 +141,14 @@ impl<'r> Loader<'r> {
 
         for result in iter {
             let path = match result {
-                Ok(ref entry) => entry.path(),
+                Ok(ref entry) if entry.file_type().is_file() => entry.path(),
+                Ok(_) => continue,
                 Err(e) => {
                     error!("{}", e);
                     continue;
                 }
             };
+            debug!("{}", path.display());
 
             let template_name = match template_name(templates_dir, path) {
                 Some(path) => path,
@@ -169,7 +158,10 @@ impl<'r> Loader<'r> {
                 }
             };
 
-            match self.registry.register_template_file(template_name.as_ref(), path) {
+            match self
+                .registry
+                .register_template_file(template_name.as_ref(), path)
+            {
                 Ok(()) => (),
                 Err(e) => {
                     error!("Could not load template {}: {}", path.display(), e);
@@ -181,7 +173,8 @@ impl<'r> Loader<'r> {
 }
 
 fn template_name(templates_dir: &Path, template_path: &Path) -> Option<String> {
-    template_path.with_extension("")
+    template_path
+        .with_extension("")
         .strip_prefix(templates_dir)
         .or_else(|e| {
             debug!("Path::strip_prefix() -> {}", e);
@@ -203,4 +196,3 @@ fn filter_templates(entry: &DirEntry) -> bool {
         false
     }
 }
-

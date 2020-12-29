@@ -14,12 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use std::iter::{FromIterator, Iterator};
-use std::collections::BTreeMap;
-use rustc_serialize::json::{Json, ToJson};
-use super::{Error, Result};
 use super::utils::DateTime;
+use super::{Error, Result};
+use std::collections::BTreeMap;
+use std::iter::{FromIterator, Iterator};
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -34,43 +32,39 @@ pub enum Value {
     Map(BTreeMap<String, Value>),
 }
 
-impl ToJson for Value {
-    fn to_json(&self) -> Json {
-        use self::Value::*;
-        match *self {
-            Null => Json::Null,
-            Bool(value) => Json::Boolean(value),
-            I64(value) => Json::I64(value),
-            U64(value) => Json::U64(value),
-            F64(value) => Json::F64(value),
-            String(ref value) => Json::String(value.clone()),
-            DateTime(ref value) => value.to_json(),
-            Vec(ref vec) => Json::Array(vec.iter().map(|v| v.to_json()).collect()),
-            Map(ref map) =>
-                Json::Object(map.iter().map(|(k, v)| (k.clone(), v.to_json())).collect()),
-        }
-    }
-}
-
 impl<'l> From<&'l str> for Value {
     fn from(string: &str) -> Value {
         Value::String(string.into())
     }
 }
 
-impl<V> FromIterator<V> for Value where Value: From<V> {
+impl<V> FromIterator<V> for Value
+where
+    Value: From<V>,
+{
     fn from_iter<I>(iterator: I) -> Self
-        where I: IntoIterator<Item = V>
+    where
+        I: IntoIterator<Item = V>,
     {
-        Value::Vec(iterator.into_iter().map(|v| Value::from(v)).collect())
+        Value::Vec(iterator.into_iter().map(Value::from).collect())
     }
 }
 
-impl<K, V> FromIterator<(K, V)> for Value where Value: From<V>, K: Into<String> {
+impl<K, V> FromIterator<(K, V)> for Value
+where
+    Value: From<V>,
+    K: Into<String>,
+{
     fn from_iter<I>(iterator: I) -> Self
-        where I: IntoIterator<Item = (K, V)>
+    where
+        I: IntoIterator<Item = (K, V)>,
     {
-        Value::Map(iterator.into_iter().map(|(k, v)| (k.into(), Value::from(v))).collect())
+        Value::Map(
+            iterator
+                .into_iter()
+                .map(|(k, v)| (k.into(), Value::from(v)))
+                .collect(),
+        )
     }
 }
 
@@ -122,7 +116,10 @@ macro_rules! impl_into (
     )
 );
 
-impl<T> Into<Vec<T>> for Value where Value: Into<Option<T>> {
+impl<T> Into<Vec<T>> for Value
+where
+    Value: Into<Option<T>>,
+{
     fn into(self) -> Vec<T> {
         match self {
             Value::Vec(v) => v.into_iter().filter_map(|i| i.into()).collect(),
@@ -158,7 +155,6 @@ impl_into!(DateTime, Value::DateTime);
 impl_into!(Vec<Value>, Value::Vec);
 impl_into!(BTreeMap<String, Value>, Value::Map);
 
-
 pub trait Field {
     fn get_name(&self) -> &'static str;
     fn from_raw(&self, raw: &str) -> Result<Value>;
@@ -169,23 +165,24 @@ pub trait Field {
     }
 }
 
-
 fn read_metadata_list(metadata: &str) -> Result<Value> {
-    let sep = if let Some(_) = metadata.find(';') {
+    let sep = if metadata.find(';').is_some() {
         ';'
     } else {
         ','
     };
-    Ok(metadata.split(sep).map(|s| String::from(s.trim())).filter(|s| s.len() > 0).collect())
+    Ok(metadata
+        .split(sep)
+        .map(|s| String::from(s.trim()))
+        .filter(|s| !s.is_empty())
+        .collect())
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Text(pub &'static str);
 unsafe impl Sync for Text {}
 
 impl Field for Text {
-
     fn get_name(&self) -> &'static str {
         self.0
     }
@@ -203,12 +200,10 @@ fn test_text_from_raw() {
     assert!(result == Some(String::from("foo")));
 }
 
-
 pub struct Date(pub &'static str);
 unsafe impl Sync for Date {}
 
 impl Field for Date {
-
     fn get_name(&self) -> &'static str {
         self.0
     }
@@ -220,12 +215,10 @@ impl Field for Date {
     }
 }
 
-
 pub struct Keywords(pub &'static str);
 unsafe impl Sync for Keywords {}
 
 impl Field for Keywords {
-
     fn get_name(&self) -> &'static str {
         self.0
     }
