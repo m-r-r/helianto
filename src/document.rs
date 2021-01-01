@@ -14,17 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::Result;
-use crate::metadata::{Date, Field, Keywords};
-use crate::utils::DateTime;
+use crate::Result;
+use crate::metadata::{DateTime, Value};
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
-
-const CREATED_FIELD: &dyn Field = &Date("created") as &dyn Field;
-const MODIFIED_FIELD: &dyn Field = &Date("modified") as &dyn Field;
-const KEYWORDS_FIELD: &dyn Field = &Keywords("keywords") as &dyn Field;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentMetadata {
@@ -34,6 +30,8 @@ pub struct DocumentMetadata {
     pub modified: Option<DateTime>,
     pub created: Option<DateTime>,
     pub keywords: Vec<String>,
+    #[serde(flatten)]
+    pub extra: HashMap<String, Value>,
 }
 
 impl Default for DocumentMetadata {
@@ -45,59 +43,28 @@ impl Default for DocumentMetadata {
             modified: None,
             created: None,
             keywords: Vec::new(),
+            extra: HashMap::new(),
         }
-    }
-}
-
-impl DocumentMetadata {
-    pub fn from_raw<T>(raw: T) -> Result<DocumentMetadata>
-    where
-        T: Iterator<Item = (String, String)>,
-    {
-        let mut metadata = DocumentMetadata::default();
-        let mut raw_metadata: HashMap<String, String> = raw
-            .map(|(key, value)| (key.to_ascii_lowercase(), value))
-            .collect();
-
-        if let Some(title) = raw_metadata.remove("title") {
-            metadata.title = title.trim().into();
-        }
-
-        if let Some(language) = raw_metadata.remove("language") {
-            metadata.language = Some(language.trim().into());
-        }
-
-        if let Some(keywords) = raw_metadata.remove("keywords") {
-            metadata.keywords = KEYWORDS_FIELD.from_raw(keywords.as_ref())?.into();
-        }
-
-        if let Some(ref created) = raw_metadata.remove("created") {
-            metadata.created = CREATED_FIELD.from_raw(created)?.into();
-        }
-
-        if let Some(ref modified) = raw_metadata.remove("modified") {
-            metadata.modified = MODIFIED_FIELD.from_raw(modified)?.into();
-        }
-
-        Ok(metadata)
     }
 }
 
 #[test]
-fn test_from_raw() {
-    let raw_metadata: Vec<(String, String)> = vec![
-        ("title".into(), "Foo bar".into()),
-        ("language".into(), "en".into()),
-        ("created".into(), "2015-12-23T02:12:35+01:00".into()),
-        ("keywords".into(), "foo, bar".into()),
-    ];
+fn test_decode_metadata() {
+    use serde_yaml::from_str;
+    let doc = r#"
+url: "/foo/bar"
+title: "Quux"
+language: fr
+created: 2020-12-30 14:47:30+01:00
+keywords: 
+    - foo
+    - bar
+extra:
+    - foo
+    - bar
+quux: 42"#;
 
-    let metadata = DocumentMetadata::from_raw(raw_metadata.into_iter());
-    assert!(metadata.is_ok());
-    if let Ok(result) = metadata {
-        assert_eq!(result.title, "Foo bar");
-        assert_eq!(result.keywords.as_ref(), ["foo", "bar"]);
-    }
+    let doc_metadata = from_str::<DocumentMetadata>(doc).unwrap();
 }
 
 #[derive(Debug, Serialize, Deserialize)]

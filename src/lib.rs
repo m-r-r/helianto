@@ -24,6 +24,8 @@ extern crate toml;
 extern crate walkdir;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate lazy_static;
 
 mod document;
 mod error;
@@ -155,7 +157,11 @@ impl Compiler {
     }
 
     fn build_document(&mut self, reader: Rc<dyn Reader>, path: &Path) -> Result<()> {
-        let (body, metadata) = reader.load(path)?;
+        debug!("Reading {} ...", path.display());
+        let content = fs::read_to_string(path)?;
+        let (front_matter, body) = metadata::parse_frontmatter(&content)?;
+
+        let body = reader.read(&body)?;
         let dest = path
             .strip_prefix(&self.settings.source_dir)
             .map(|relpath| relpath.with_extension("html"))
@@ -164,7 +170,7 @@ impl Compiler {
         let document = Document {
             metadata: DocumentMetadata {
                 url: dest.to_str().unwrap().into(),
-                .. DocumentMetadata::from_raw(metadata.into_iter())?
+                .. front_matter.unwrap_or(DocumentMetadata::default())
             },
             content: DocumentContent::from(body),
         };

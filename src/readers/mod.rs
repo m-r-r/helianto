@@ -15,13 +15,9 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::Result;
-use std::collections::HashMap;
-use std::path::Path;
 
 mod markdown;
 pub use self::markdown::MarkdownReader;
-
-pub type Metadata = HashMap<String, String>;
 
 pub trait Reader {
     fn extensions() -> &'static [&'static str]
@@ -30,5 +26,6 @@ pub trait Reader {
     fn new(settings: &super::Settings) -> Self
     where
         Self: Sized;
-    fn load(&self, path: &Path) -> Result<(String, Metadata)>;
+
+    fn read(&self, markup: &str) -> Result<String>;
 }
