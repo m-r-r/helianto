@@ -46,14 +46,12 @@ fn date_helper(
     let value = h
         .param(0)
         .map(|v| v.value())
-        .ok_or(RenderError::new("Param not found for helper \"date\""))?
+        .ok_or_else(|| RenderError::new("Param not found for helper \"date\""))?
         .render();
 
     let format: String = h
         .hash_get("format")
-        .ok_or(RenderError::new(
-            "Parameter \"format\" missing for helper \"date\"",
-        ))?
+        .ok_or_else(|| RenderError::new("Parameter \"format\" missing for helper \"date\""))?
         .render();
 
     out.write(
@@ -79,7 +77,7 @@ fn join_helper(
     let value = h
         .param(0)
         .map(|v| v.value())
-        .ok_or(RenderError::new("Param not found for helper \"join\""))?;
+        .ok_or_else(|| RenderError::new("Param not found for helper \"join\""))?;
 
     let separator = h
         .hash_get("separator")
@@ -90,7 +88,7 @@ fn join_helper(
                 Some(pv.render())
             }
         })
-        .unwrap_or(String::from(DEFAULT_SEPARATOR));
+        .unwrap_or_else(|| String::from(DEFAULT_SEPARATOR));
 
     out.write(
         value
@@ -176,9 +174,9 @@ fn template_name(templates_dir: &Path, template_path: &Path) -> Option<String> {
     template_path
         .with_extension("")
         .strip_prefix(templates_dir)
-        .or_else(|e| {
+        .map_err(|e| {
             debug!("Path::strip_prefix() -> {}", e);
-            Err(e)
+            e
         })
         .ok()
         .and_then(|p| p.to_str())

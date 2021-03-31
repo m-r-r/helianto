@@ -145,7 +145,7 @@ impl Compiler {
         fs::create_dir_all(&dest_dir)
             .and_then(|_| {
                 let mut fd = File::create(&dest_file)?;
-                fd.write(output.as_ref())?;
+                fd.write_all(output.as_ref())?;
                 fd.sync_data()?;
                 Ok(())
             })
@@ -176,12 +176,11 @@ impl Compiler {
             dest.display()
         );
         self.render_context(Context::new(&self.site, &document), &dest)
-            .and_then(|_| {
+            .map(|_| {
                 self.documents.insert(
                     dest.to_str().unwrap().into(),
                     Rc::new(document.metadata.clone()),
                 );
-                Ok(())
             })
     }
 
@@ -192,12 +191,10 @@ impl Compiler {
             .unwrap();
         let dest_dir = dest.parent().unwrap();
 
+        debug!("Copying {} to {}", path.display(), dest.display());
         fs::create_dir_all(&dest_dir)
             .and_then(|_| fs::copy(path, &dest))
-            .and_then(|_| {
-                debug!("Copying {} to {}", path.display(), dest.display());
-                Ok(())
-            })
+            .map(|_| ())
             .map_err(|err| Error::Copy {
                 from: path.into(),
                 to: dest_dir.into(),

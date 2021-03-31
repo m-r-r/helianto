@@ -182,7 +182,7 @@ fn split_pair<S: AsRef<str>>(input: &S) -> (String, String) {
     (key.trim().into(), value.trim().into())
 }
 
-fn get_event_text<'a>(event: &Event<'a>) -> String {
+fn get_event_text(event: &Event) -> String {
     if let Event::Text(ref text) = *event {
         text.clone().to_string()
     } else {
@@ -195,7 +195,7 @@ fn process_markdown<S: AsRef<str>>(input: &S) -> (String, Metadata) {
         input.as_ref(),
         Options::ENABLE_TABLES | Options::ENABLE_FOOTNOTES,
     ));
-    let mut output = String::with_capacity(input.as_ref().len() * (3 / 2));
+    let mut output = String::with_capacity(input.as_ref().len());
     html::push_html(&mut output, &mut parser);
     (output, parser.metadata)
 }

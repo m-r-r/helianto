@@ -19,11 +19,15 @@ use std::io::Error as IoError;
 use std::path::PathBuf;
 use std::{error, fmt, result};
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T, E = Error> = result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Error {
     Io(IoError),
+
+    // The command line interface was called with incorrect parameters
+    Cli(Box<dyn error::Error>),
+
     // An error happened while reading a document.
     Reader {
         path: PathBuf,
@@ -76,10 +80,17 @@ impl From<IoError> for Error {
     }
 }
 
+impl From<getopts::Fail> for Error {
+    fn from(error: getopts::Fail) -> Error {
+        Error::Cli(Box::new(error))
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Io(ref err) => write!(f, "IO error: {}", err),
+            Error::Cli(ref err) => write!(f, "{}", err),
             Error::Reader {
                 ref path,
                 ref cause,
@@ -127,6 +138,7 @@ impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             Error::Io(ref err) => Some(err),
+            Error::Cli(ref err) => Some(err.borrow()),
             Error::Reader { ref cause, .. } => Some(cause.borrow()),
             Error::Copy { ref cause, .. } => Some(cause.borrow()),
             Error::Output { ref cause, .. } => Some(cause.borrow()),

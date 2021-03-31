@@ -8,6 +8,7 @@ name = "helianto"
 readme = "README.markdown"
 repository = "https://github.com/m-r-r/helianto.git"
 version = "0.1.1"
+edition = "2018"
 
 [dependencies]
 chrono = "0.4.19"
